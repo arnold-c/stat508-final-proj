@@ -1,0 +1,36 @@
+---
+title: "STAT 508 Final Project EDA"
+author: "Callum Arnold"
+output:
+    html_notebook:
+        code_folding: hide
+        toc: yes
+        toc_float: yes
+---
+
+# Set Up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 14)
+```
+
+```{r}
+library(ISLR)
+library(tidyverse)
+library(splines)
+library(gam)
+library(akima)
+library(kableExtra)
+library(hrbrthemes)
+library(janitor)
+library(rsample)
+library(corrplot)
+library(caret)
+library(caretEnsemble)
+library(PerformanceAnalytics)
+
+RNGkind(sample.kind = "Rounding")
+set.seed(1)
+
+theme_set(theme_ipsum())
+```
