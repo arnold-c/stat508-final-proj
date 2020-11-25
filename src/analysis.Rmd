@@ -17,6 +17,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width =
 ```{r}
 library(tidyverse)
 library(tidymodels)
+library(themis)
+library(kknn)
 library(here)
 library(kableExtra)
 library(hrbrthemes)
@@ -29,7 +31,11 @@ theme_set(theme_ipsum())
 ```
 
 ```{r}
-credit <- as_tibble(read_csv(here("data", "creditcard.csv"))) %>%
+credit <- as_tibble(read_csv(here("data", "creditcard.csv")))
+```
+
+```{r}
+credit <- credit %>%
   mutate(
     log_amount = log(Amount + 1),
     Class = case_when(
@@ -37,13 +43,14 @@ credit <- as_tibble(read_csv(here("data", "creditcard.csv"))) %>%
       Class == 1 ~ "Fraud"
     )
   ) %>%
-  mutate(across(.cols = Class, .fns = factor))
+  mutate(across(.cols = Class, .fns = factor)) %>%
+  select(-Amount)
 ```
+
 
 ```{r}
 tabyl(credit$Class)
 ```
-
 
 # Pre-Processing
 
@@ -54,92 +61,199 @@ Subsampling has a few important points regarding the [workflow](https://www.tidy
 - It is extremely important that subsampling occurs inside of resampling. Otherwise, the resampling process can produce poor estimates of model performance.
 - The subsampling process should only be applied to the analysis set. The assessment set should reflect the event rates seen “in the wild” and, for this reason, the skip argument to step_downsample() and other subsampling recipes steps has a default of TRUE.
 
+```{r}
+set.seed(1234)
+split <- initial_split(credit, strata = "Class", prop = 0.8)
 
-## Oversampling
+credit_train <- training(split)
+credit_test <- testing(split)
+```
 
-For oversampling, we'll use the ROSE (random over sampling examples) method 
-[Menardi, G. and Torelli, N. (2014)](https://link.springer.com/article/10.1007/s10618-012-0295-5).
 
 ```{r}
 credit_rec <- 
-  recipe(Class ~ ., data = credit) %>%
-  step_rose(Class)
+  recipe(Class ~ ., data = credit_train) %>%
+  step_downsample(Class) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_zv(all_numeric()) %>%
+  step_normalize(Time, log_amount) %>%
+  prep()
 ```
 
 ```{r}
-set.seed(1)
-cv_folds <- vfold_cv(credit, strata = "Class", repeats = 5)
-
-cls_metrics <- metric_set(roc_auc, j_index)
-```
-
-
-# Initial Modelling
-## QDA
-
-```{r}
-log_mod <- 
-  logistic_reg() %>% 
-  set_engine("glm")
+juice(credit_rec) %>% count(Class)
 ```
 
 ```{r}
-log_rose_wflw <- 
-  workflow() %>% 
-  add_model(log_mod) %>% 
-  add_recipe(credit_rec)
+knn_spec <- nearest_neighbor() %>%
+  set_engine("kknn") %>%
+  set_mode("classification")
 
-log_rose_wflw
+knn_fit <- knn_spec %>%
+  fit(
+    Class ~ .,
+    data = juice(credit_rec)
+    )
+
+knn_fit
 ```
 
 ```{r}
-log_wflw <- 
-  workflow() %>% 
-  add_model(log_mod) %>% 
-  add_formula(Class ~ .)
+tree_spec <- decision_tree() %>%
+  set_engine("rpart") %>%
+  set_mode("classification")
+
+tree_fit <- tree_spec %>%
+  fit(
+    Class ~ .,
+    data = juice(credit_rec)
+  )
+
+tree_fit
+```
+
+# Evaluate Models
+
+```{r}
+set.seed(1234)
+validation_splits <- mc_cv(juice(credit_rec), prop = 0.8, strata = "Class")
 ```
 
 ```{r}
-set.seed(2180)
-
-log_rose_res <- fit_resamples(
-  log_rose_wflw, 
-  resamples = cv_folds, 
-  metrics = cls_metrics
+knn_result <- fit_resamples(
+  knn_spec,
+  Class ~ .,
+  validation_splits,
+  control = control_resamples(save_pred = TRUE)
 )
 
-collect_metrics(log_rose_res)
+knn_result %>%
+  collect_metrics()
 ```
 
 ```{r}
-set.seed(2180)
-
-log_only_res <- fit_resamples(
-  log_wflw,
-  resamples = cv_folds,
-  metrics = cls_metrics
+tree_result <- fit_resamples(
+  tree_spec,
+  Class ~ .,
+  validation_splits,
+  control = control_resamples(save_pred = TRUE)
 )
 
-collect_metrics(log_only_res)
+tree_result %>%
+  collect_metrics()
 ```
 
 ```{r}
-no_sampling <- 
-  log_only_res %>% 
-  collect_metrics(summarize = FALSE) %>% 
-  dplyr::select(-.estimator) %>% 
-  mutate(sampling = "no_sampling")
+knn_result %>%
+  unnest(.predictions) %>%
+  mutate(model = "kknn") %>%
+  bind_rows(
+    tree_result %>%
+  unnest(.predictions) %>%
+  mutate(model = "rpart")
+  ) %>%
+  group_by(model) %>%
+  roc_curve(Class, .pred_Fraud) %>%
+  autoplot()
 
-with_sampling <- 
-  log_rose_res %>% 
-  collect_metrics(summarize = FALSE) %>% 
-  dplyr::select(-.estimator) %>% 
-  mutate(sampling = "rose")
-
-bind_rows(no_sampling, with_sampling) %>% 
-  mutate(label = paste(id2, id)) %>%  
-  ggplot(aes(x = sampling, y = .estimate, group = label)) + 
-  geom_line(alpha = .4) + 
-  facet_wrap(~ .metric, scales = "free_y")
 ```
+
+```{r}
+knn_result %>%
+  unnest(.predictions) %>%
+  conf_mat(Class, .pred_class)
+
+tree_result %>%
+  unnest(.predictions) %>%
+  conf_mat(Class, .pred_class)
+```
+
+```{r}
+tree_fit %>%
+  predict(new_data = credit_test, type = "prob") %>%
+  mutate(truth = credit_test$Class) %>%
+  roc_auc(truth, .pred_Fraud)
+```
+
+
+<!-- # Test Modelling -->
+<!-- ## Oversampling -->
+
+<!-- For oversampling, we'll use the ROSE (random over sampling examples) method  -->
+<!-- [Menardi, G. and Torelli, N. (2014)](https://link.springer.com/article/10.1007/s10618-012-0295-5). -->
+
+<!-- ## Logistic -->
+
+<!-- ```{r} -->
+<!-- set.seed(1) -->
+<!-- cv_folds <- vfold_cv(credit, strata = "Class", repeats = 5) -->
+
+<!-- cls_metrics <- metric_set(roc_auc, j_index) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- log_mod <-  -->
+<!--   logistic_reg() %>%  -->
+<!--   set_engine("glm") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- log_rose_wflw <-  -->
+<!--   workflow() %>%  -->
+<!--   add_model(log_mod) %>%  -->
+<!--   add_recipe(credit_rec) -->
+
+<!-- log_rose_wflw -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- log_wflw <-  -->
+<!--   workflow() %>%  -->
+<!--   add_model(log_mod) %>%  -->
+<!--   add_formula(Class ~ .) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- set.seed(2180) -->
+
+<!-- log_rose_res <- fit_resamples( -->
+<!--   log_rose_wflw,  -->
+<!--   resamples = cv_folds,  -->
+<!--   metrics = cls_metrics -->
+<!-- ) -->
+
+<!-- collect_metrics(log_rose_res) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- set.seed(2180) -->
+
+<!-- log_only_res <- fit_resamples( -->
+<!--   log_wflw, -->
+<!--   resamples = cv_folds, -->
+<!--   metrics = cls_metrics -->
+<!-- ) -->
+
+<!-- collect_metrics(log_only_res) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- no_sampling <-  -->
+<!--   log_only_res %>%  -->
+<!--   collect_metrics(summarize = FALSE) %>%  -->
+<!--   dplyr::select(-.estimator) %>%  -->
+<!--   mutate(sampling = "no_sampling") -->
+
+<!-- with_sampling <-  -->
+<!--   log_rose_res %>%  -->
+<!--   collect_metrics(summarize = FALSE) %>%  -->
+<!--   dplyr::select(-.estimator) %>%  -->
+<!--   mutate(sampling = "rose") -->
+
+<!-- bind_rows(no_sampling, with_sampling) %>%  -->
+<!--   mutate(label = paste(id2, id)) %>%   -->
+<!--   ggplot(aes(x = sampling, y = .estimate, group = label)) +  -->
+<!--   geom_line(alpha = .4) +  -->
+<!--   facet_wrap(~ .metric, scales = "free_y") -->
+<!-- ``` -->
 
