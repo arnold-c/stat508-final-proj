@@ -82,10 +82,10 @@ credit_folds <- vfold_cv(credit_train, v = 10)
 # Create recipe so all folds are undergo same pre-processing
 credit_rec <- 
   recipe(Class ~ ., data = credit_train) %>%
-  step_downsample(Class) %>%
   step_dummy(all_nominal(), -all_outcomes()) %>%
   step_zv(all_numeric()) %>%
-  step_normalize(Time, log_amount)
+  step_normalize(Time, log_amount) %>%
+  step_downsample(Class)
 
 # Create workflow so all models can replicate same analysis methods
 credit_wf <- workflow() %>%
@@ -128,7 +128,6 @@ rf_rs <- credit_wf %>%
 
 rf_rs
 ```
-
 
 # Evaluate Models
 
