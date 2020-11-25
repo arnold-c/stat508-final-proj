@@ -72,16 +72,67 @@ tabyl(credit_train$Class)
 tabyl(credit_test$Class)
 ```
 
+```{r}
+# Create fold so same folds analyzed for every method
+set.seed(1234)
+credit_folds <- vfold_cv(credit_train, v = 10)
+```
 
 ```{r}
+# Create recipe so all folds are undergo same pre-processing
 credit_rec <- 
   recipe(Class ~ ., data = credit_train) %>%
   step_downsample(Class) %>%
   step_dummy(all_nominal(), -all_outcomes()) %>%
   step_zv(all_numeric()) %>%
-  step_normalize(Time, log_amount) %>%
-  prep()
+  step_normalize(Time, log_amount)
+
+# Create workflow so all models can replicate same analysis methods
+credit_wf <- workflow() %>%
+  add_recipe(credit_rec)
 ```
+
+```{r}
+# Specify logistic model
+glm_spec <- logistic_reg() %>%
+  set_engine("glm")
+
+# Specify random forest model
+rf_spec <- rand_forest(trees = 1000) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+```
+
+```{r}
+doParallel::registerDoParallel()
+
+# Fit logistic model to all folds in training data (resampling), saving certain metrics
+glm_rs <- credit_wf %>%
+  add_model(glm_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+glm_rs
+```
+
+```{r}
+doParallel::registerDoParallel()
+
+# Fit random forest model to all folds in training data (resampling), saving certain metrics
+rf_rs <- credit_wf %>%
+  add_model(rf_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+rf_rs
+```
+
 
 ```{r}
 juice(credit_rec) %>% count(Class)
