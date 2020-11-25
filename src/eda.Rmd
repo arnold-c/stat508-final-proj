@@ -20,6 +20,7 @@ library(here)
 library(hrbrthemes)
 library(janitor)
 library(corrplot)
+library(skimr)
 
 RNGkind(sample.kind = "Rounding")
 set.seed(1)
@@ -42,6 +43,11 @@ head(credit)
 ```{r}
 anyNA(credit)
 ```
+
+```{r}
+skim(credit)
+```
+
 
 ```{r}
 for (i in 1:ncol(credit)){

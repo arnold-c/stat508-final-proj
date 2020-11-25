@@ -63,10 +63,13 @@ Subsampling has a few important points regarding the [workflow](https://www.tidy
 
 ```{r}
 set.seed(1234)
-split <- initial_split(credit, strata = "Class", prop = 0.8)
+credit_split <- initial_split(credit, strata = "Class", prop = 0.8)
 
-credit_train <- training(split)
-credit_test <- testing(split)
+credit_train <- training(credit_split)
+credit_test <- testing(credit_split)
+
+tabyl(credit_train$Class)
+tabyl(credit_test$Class)
 ```
 
 
