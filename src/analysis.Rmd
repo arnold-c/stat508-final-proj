@@ -1,0 +1,145 @@
+---
+title: "STAT 508 Final Project Analysis"
+author: "Callum Arnold"
+output:
+    html_notebook:
+        code_folding: hide
+        toc: yes
+        toc_float: yes
+---
+
+# Set Up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 14)
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(kableExtra)
+library(hrbrthemes)
+library(janitor)
+
+RNGkind(sample.kind = "Rounding")
+set.seed(1)
+
+theme_set(theme_ipsum())
+```
+
+```{r}
+credit <- as_tibble(read_csv(here("data", "creditcard.csv"))) %>%
+  mutate(
+    log_amount = log(Amount + 1),
+    Class = case_when(
+      Class == 0 ~ "None",
+      Class == 1 ~ "Fraud"
+    )
+  ) %>%
+  mutate(across(.cols = Class, .fns = factor))
+```
+
+```{r}
+tabyl(credit$Class)
+```
+
+
+# Pre-Processing
+
+Because there's a severe class imbalance, we should use subsampling (either oversampling or undersampling).
+
+Subsampling has a few important points regarding the [workflow](https://www.tidymodels.org/learn/models/sub-sampling/):
+
+- It is extremely important that subsampling occurs inside of resampling. Otherwise, the resampling process can produce poor estimates of model performance.
+- The subsampling process should only be applied to the analysis set. The assessment set should reflect the event rates seen “in the wild” and, for this reason, the skip argument to step_downsample() and other subsampling recipes steps has a default of TRUE.
+
+
+## Oversampling
+
+For oversampling, we'll use the ROSE (random over sampling examples) method 
+[Menardi, G. and Torelli, N. (2014)](https://link.springer.com/article/10.1007/s10618-012-0295-5).
+
+```{r}
+credit_rec <- 
+  recipe(Class ~ ., data = credit) %>%
+  step_rose(Class)
+```
+
+```{r}
+set.seed(1)
+cv_folds <- vfold_cv(credit, strata = "Class", repeats = 5)
+
+cls_metrics <- metric_set(roc_auc, j_index)
+```
+
+
+# Initial Modelling
+## QDA
+
+```{r}
+log_mod <- 
+  logistic_reg() %>% 
+  set_engine("glm")
+```
+
+```{r}
+log_rose_wflw <- 
+  workflow() %>% 
+  add_model(log_mod) %>% 
+  add_recipe(credit_rec)
+
+log_rose_wflw
+```
+
+```{r}
+log_wflw <- 
+  workflow() %>% 
+  add_model(log_mod) %>% 
+  add_formula(Class ~ .)
+```
+
+```{r}
+set.seed(2180)
+
+log_rose_res <- fit_resamples(
+  log_rose_wflw, 
+  resamples = cv_folds, 
+  metrics = cls_metrics
+)
+
+collect_metrics(log_rose_res)
+```
+
+```{r}
+set.seed(2180)
+
+log_only_res <- fit_resamples(
+  log_wflw,
+  resamples = cv_folds,
+  metrics = cls_metrics
+)
+
+collect_metrics(log_only_res)
+```
+
+```{r}
+no_sampling <- 
+  log_only_res %>% 
+  collect_metrics(summarize = FALSE) %>% 
+  dplyr::select(-.estimator) %>% 
+  mutate(sampling = "no_sampling")
+
+with_sampling <- 
+  log_rose_res %>% 
+  collect_metrics(summarize = FALSE) %>% 
+  dplyr::select(-.estimator) %>% 
+  mutate(sampling = "rose")
+
+bind_rows(no_sampling, with_sampling) %>% 
+  mutate(label = paste(id2, id)) %>%  
+  ggplot(aes(x = sampling, y = .estimate, group = label)) + 
+  geom_line(alpha = .4) + 
+  facet_wrap(~ .metric, scales = "free_y")
+```
+
