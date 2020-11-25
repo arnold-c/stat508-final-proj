@@ -98,7 +98,11 @@ glm_spec <- logistic_reg() %>%
   set_engine("glm")
 
 # Specify random forest model
-rf_spec <- rand_forest(trees = 500) %>%
+rf_spec <- rand_forest(
+  mtry = tune(),
+  trees = 500,
+  min_n = tune()
+  ) %>%
   set_engine("ranger") %>%
   set_mode("classification")
 ```
@@ -114,6 +118,29 @@ glm_rs <- credit_wf %>%
   )
 
 glm_rs
+```
+
+```{r}
+# Tune random forest hyperparameters
+rf_tune_rs <- tune_grid(
+  credit_wf,
+  resamples = credit_folds,
+  grid = 20
+)
+```
+
+```{r}
+rf_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, min_n, mtry) %>%
+  pivot_longer(
+    cols = min_n:mtry, 
+    values_to = "value",
+    names_to = "parameter") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x")
 ```
 
 ```{r}
