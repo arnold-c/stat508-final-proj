@@ -15,22 +15,93 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width =
 ```
 
 ```{r}
-library(ISLR)
 library(tidyverse)
-library(splines)
-library(gam)
-library(akima)
-library(kableExtra)
+library(here)
 library(hrbrthemes)
 library(janitor)
-library(rsample)
 library(corrplot)
-library(caret)
-library(caretEnsemble)
-library(PerformanceAnalytics)
 
 RNGkind(sample.kind = "Rounding")
 set.seed(1)
 
 theme_set(theme_ipsum())
 ```
+
+```{r}
+credit <- as_tibble(read_csv(here("data", "creditcard.csv")))
+```
+
+# EDA
+
+```{r}
+head(credit)
+```
+
+## Variable Summary
+
+```{r}
+anyNA(credit)
+```
+
+```{r}
+for (i in 1:ncol(credit)){
+  print(summary(credit[, i]))
+}
+```
+
+### Distributions
+
+```{r}
+for (i in names(credit[, -31])) {
+  p <- ggplot(credit, aes_string(x = i)) +
+    geom_density(fill = "cornsilk")
+
+  print(p)
+}
+```
+
+## Relationship with Response
+
+```{r}
+ggplot(data = credit, aes(x = Time, fill = Class)) +
+  geom_histogram() +
+  facet_wrap(~Class, scales = "free")
+```
+
+```{r}
+ggplot(data = credit, aes(x = log(Amount), fill = Class)) +
+  geom_histogram() +
+  facet_wrap(~Class, scales = "free")
+```
+
+```{r}
+ggplot(data = credit, aes(x = Time, y = log(Amount), alpha = 0.2)) +
+  geom_point() +
+  facet_wrap(~Class, scales = "free")
+```
+There is a clear skew to the `Amount` variable, so it is worth applying a transformation to the data. 
+As there are values of `0`, we need to add `1` to ensure that we don't get `Inf` values produced after log transformation.
+
+```{r}
+credit <- credit %>%
+  mutate(log_amount = log(Amount + 1))
+
+summary(credit$log_amount)
+```
+
+```{r}
+ggplot(credit, aes(x = log_amount)) +
+    geom_density(fill = "cornsilk")
+```
+
+## Predictor Correlations
+
+```{r}
+corrplot(cor(credit[, -31]), method = "square", type = "upper")
+```
+
+Transformation of `Amount` has helped to reduce collinearities of the predictors.
+The only correlations are between `V3` and `Time`, and `V2` and `log_amount`.
+This is as expected as PCA produces orthogonal linear combinations,
+therefore there shouldn't be much correlation between them.
+
