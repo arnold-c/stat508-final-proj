@@ -98,7 +98,7 @@ glm_spec <- logistic_reg() %>%
   set_engine("glm")
 
 # Specify random forest model
-rf_spec <- rand_forest(trees = 1000) %>%
+rf_spec <- rand_forest(trees = 500) %>%
   set_engine("ranger") %>%
   set_mode("classification")
 ```
@@ -134,101 +134,34 @@ rf_rs
 ```
 
 
-```{r}
-juice(credit_rec) %>% count(Class)
-```
-
-```{r}
-knn_spec <- nearest_neighbor() %>%
-  set_engine("kknn") %>%
-  set_mode("classification")
-
-knn_fit <- knn_spec %>%
-  fit(
-    Class ~ .,
-    data = juice(credit_rec)
-    )
-
-knn_fit
-```
-
-```{r}
-tree_spec <- decision_tree() %>%
-  set_engine("rpart") %>%
-  set_mode("classification")
-
-tree_fit <- tree_spec %>%
-  fit(
-    Class ~ .,
-    data = juice(credit_rec)
-  )
-
-tree_fit
-```
-
 # Evaluate Models
 
 ```{r}
-set.seed(1234)
-validation_splits <- mc_cv(juice(credit_rec), prop = 0.8, strata = "Class")
+collect_metrics(glm_rs)
+collect_metrics(rf_rs)
 ```
 
-```{r}
-knn_result <- fit_resamples(
-  knn_spec,
-  Class ~ .,
-  validation_splits,
-  control = control_resamples(save_pred = TRUE)
-)
-
-knn_result %>%
-  collect_metrics()
-```
+GLM has higher sensitivity, so will be better at detecting fraud.
 
 ```{r}
-tree_result <- fit_resamples(
-  tree_spec,
-  Class ~ .,
-  validation_splits,
-  control = control_resamples(save_pred = TRUE)
-)
-
-tree_result %>%
-  collect_metrics()
-```
-
-```{r}
-knn_result %>%
-  unnest(.predictions) %>%
-  mutate(model = "kknn") %>%
-  bind_rows(
-    tree_result %>%
-  unnest(.predictions) %>%
-  mutate(model = "rpart")
-  ) %>%
-  group_by(model) %>%
+glm_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
   roc_curve(Class, .pred_Fraud) %>%
   autoplot()
-
 ```
 
 ```{r}
-knn_result %>%
-  unnest(.predictions) %>%
-  conf_mat(Class, .pred_class)
+# Fit final model to training data
+credit_final <- credit_wf %>%
+  add_model(glm_spec) %>%
+  last_fit(credit_split)
 
-tree_result %>%
-  unnest(.predictions) %>%
-  conf_mat(Class, .pred_class)
+collect_metrics(credit_final)
+
+collect_predictions(credit_final) %>%
+  conf_mat(Class, .pred_Fraud)
 ```
-
-```{r}
-tree_fit %>%
-  predict(new_data = credit_test, type = "prob") %>%
-  mutate(truth = credit_test$Class) %>%
-  roc_auc(truth, .pred_Fraud)
-```
-
 
 <!-- # Test Modelling -->
 <!-- ## Oversampling -->
