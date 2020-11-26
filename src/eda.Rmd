@@ -146,13 +146,19 @@ levels(prop_vars$PC)
 
 prop_vars %>%
   ggplot(aes(x = PC, y = prop_var)) +
-  geom_col()
+  geom_col() + 
+  labs(title = "Proportion of Variance Explained by Principal Components",
+       x = "Principal component number",
+       y = "Proportion of variance explained")
 ```
 
 ```{r}
 prop_vars %>%
   ggplot(aes(x = PC, y = cum_var)) +
-  geom_col()
+  geom_col() + 
+  labs(title = "Cumulative Proportion of Variance Explained by Principal Components",
+       x = "Principal component number",
+       y = "Proportion of variance explained")
 ```
 
 
