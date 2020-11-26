@@ -109,24 +109,28 @@ rf_spec <- rand_forest(
 
 ```{r}
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-glm_rs <- credit_wf %>%
-  add_model(glm_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
-    control = control_resamples(save_pred = TRUE)
-  )
-
-glm_rs
+# glm_rs <- credit_wf %>%
+#   add_model(glm_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(glm_rs, here("out", "glm_rs.rds"))
+glm_rs <- readRDS(here("out", "glm_rs.rds"))
 ```
 
 ```{r}
 # Tune random forest hyperparameters
-rf_tune_rs <- tune_grid(
-  credit_wf,
-  resamples = credit_folds,
-  grid = 20
-)
+# rf_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(rf_spec),
+#   resamples = credit_folds,
+#   grid = 20
+# )
+# 
+# saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
+rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 ```
 
 ```{r}
