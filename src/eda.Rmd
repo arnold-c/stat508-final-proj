@@ -140,7 +140,7 @@ prop_vars <- vars %>%
   transmute(variance = value) %>%
   mutate(prop_var = variance / sum(variance),
          cum_var = cumsum(prop_var),
-         PC = factor(paste0("V", row_number()), levels = paste0("V", row_number())))
+         PC = fct_inorder(paste0("V", row_number())))
 
 levels(prop_vars$PC)
 
