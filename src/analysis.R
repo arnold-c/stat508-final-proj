@@ -97,7 +97,8 @@ glm_spec %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
   ) %>%
-  vip(geom = "point")
+  vip(geom = "point") +
+  labs(title = "Logistic Regression VIP")
 
 # Random Forest -----------------------------------------------------------
 
@@ -158,6 +159,7 @@ rf_grid
 # saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
+# Examine AUC for hyperparameters
 rf_reg_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -167,6 +169,7 @@ rf_reg_tune_rs %>%
   geom_point() +
   labs(y = "AUC")
 
+# Examine accuracy for hyperparameters
 rf_reg_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "accuracy") %>%
@@ -196,7 +199,8 @@ rf_final_spec %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
   ) %>%
-  vip(geom = "point")
+  vip(geom = "point") +
+  labs(title = "Random Forest VIP")
 
 # Fit random forest model to all folds in training data (resampling), saving certain metrics
 rf_final_rs <- credit_wf %>%
@@ -237,17 +241,18 @@ xgb_grid <- grid_latin_hypercube(
 )
   
 # Tune XGBoost hyperparameters using space filling parameter grid
-doParallel::registerDoParallel()
-set.seed(1234)
-xgb_tune_rs <- tune_grid(
-  credit_wf %>% add_model(xgb_spec),
-  resamples = credit_folds,
-  grid = xgb_grid
-)
-
-saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# xgb_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(xgb_spec),
+#   resamples = credit_folds,
+#   grid = xgb_grid
+# )
+# 
+# saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
+# Examine AUC for hyperparameters
 xgb_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -263,7 +268,7 @@ xgb_tune_rs %>%
 
 show_best(xgb_tune_rs, "roc_auc")
 
-best_xgb_auc <- select_best(xgxgb_tune_rs, "roc_auc")
+best_xgb_auc <- select_best(xgb_tune_rs, "roc_auc")
 
 xgb_final_spec <- finalize_model(
   xgb_spec,
@@ -276,7 +281,8 @@ xgb_final_spec %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
   ) %>%
-  vip(geom = "point")
+  vip(geom = "point") +
+  labs(title = "XGBoost VIP")
 
 # Fit XGBoost model to all folds in training data (resampling), saving certain metrics
 xgb_final_rs <- credit_wf %>%
