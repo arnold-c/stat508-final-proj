@@ -85,6 +85,7 @@ rf_spec <- rand_forest(
   set_mode("classification")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
+# doParallel::registerDoParallel()
 # glm_rs <- credit_wf %>%
 #   add_model(glm_spec) %>%
 #   fit_resamples(
@@ -97,12 +98,14 @@ rf_spec <- rand_forest(
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
 # Tune random forest hyperparameters
-# rf_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(rf_spec),
-#   resamples = credit_folds,
-#   grid = 20
-# )
-# 
+doParallel::registerDoParallel()
+set.seed(1234)
+rf_tune_rs <- tune_grid(
+  credit_wf %>% add_model(rf_spec),
+  resamples = credit_folds,
+  grid = 20
+)
+
 # saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
 rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 
@@ -188,8 +191,8 @@ rf_final_rs
 
 collect_metrics(glm_rs)
 collect_metrics(rf_final_rs)
-# 
-# 
+
+
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
 # 
 # glm_rs %>%
