@@ -69,19 +69,19 @@ for (i in names(credit[, -31])) {
 ## Relationship with Response
 
 ```{r}
-ggplot(data = credit, aes(x = Time, fill = Class)) +
+ggplot(data = credit, aes(x = Time, fill = factor(Class))) +
   geom_histogram() +
   facet_wrap(~Class, scales = "free")
 ```
 
 ```{r}
-ggplot(data = credit, aes(x = log(Amount), fill = Class)) +
+ggplot(data = credit, aes(x = log(Amount), fill = factor(Class))) +
   geom_histogram() +
   facet_wrap(~Class, scales = "free")
 ```
 
 ```{r}
-ggplot(data = credit, aes(x = Time, y = log(Amount), alpha = 0.2)) +
+ggplot(data = credit, aes(x = Time, y = log(Amount), alpha = 0.2, color = factor(Class))) +
   geom_point() +
   facet_wrap(~Class, scales = "free")
 ```
@@ -117,7 +117,43 @@ credit %>%
     trans_time = scale(Time, center = TRUE),
     trans_amount = scale(log_amount, center = TRUE)
     ) %>%
+  select(trans_time, everything()) %>%
   select(-c(Amount, Time, log_amount)) %>%
   cor() %>%
   corrplot(method = "square", type = "upper")
 ```
+
+# PCA Importance
+
+```{r}
+vars <- credit %>%
+  select(-c(Time, Amount, log_amount, Class)) %>%
+  sapply(var) %>%
+  sort(decreasing = TRUE) %>%
+  as_tibble()
+
+vars
+```
+
+```{r}
+prop_vars <- vars %>%
+  transmute(variance = value) %>%
+  mutate(prop_var = variance / sum(variance),
+         cum_var = cumsum(prop_var),
+         PC = factor(paste0("V", row_number()), levels = paste0("V", row_number())))
+
+levels(prop_vars$PC)
+
+prop_vars %>%
+  ggplot(aes(x = PC, y = prop_var)) +
+  geom_col()
+```
+
+```{r}
+prop_vars %>%
+  ggplot(aes(x = PC, y = cum_var)) +
+  geom_col()
+```
+
+
+
