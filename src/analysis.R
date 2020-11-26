@@ -244,7 +244,9 @@ xgb_tune_rs %>%
   labs(y = "AUC") +
   facet_wrap(~parameter, scales = "free_x")
 
-best_xgb_auc <- show_best(xgxgb_tune_rs, "roc_auc")
+show_best(xgxgb_tune_rs, "roc_auc")
+
+best_xgb_auc <- select_best(xgxgb_tune_rs, "roc_auc")
 
 xgb_final_spec <- finalize_model(
   xgb_spec,
