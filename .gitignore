@@ -1,4 +1,5 @@
 # Data files
+*.rds
 *.csv
 
 # History files
