@@ -71,18 +71,11 @@ credit_rec <-
 credit_wf <- workflow() %>%
   add_recipe(credit_rec)
 
+# Logistic Regression -----------------------------------------------------
+
 # Specify logistic model
 glm_spec <- logistic_reg() %>%
   set_engine("glm")
-
-# Specify random forest model
-rf_spec <- rand_forest(
-  mtry = tune(),
-  trees = 500,
-  min_n = tune()
-) %>%
-  set_engine("ranger") %>%
-  set_mode("classification")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
 # doParallel::registerDoParallel()
@@ -96,6 +89,17 @@ rf_spec <- rand_forest(
 # 
 # saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
+
+# Random Forest -----------------------------------------------------------
+
+# Specify random forest model
+rf_spec <- rand_forest(
+  mtry = tune(),
+  trees = 500,
+  min_n = tune()
+) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
 
 # Tune random forest hyperparameters
 # doParallel::registerDoParallel()
@@ -188,6 +192,44 @@ rf_final_rs <- credit_wf %>%
 
 rf_final_rs
 
+
+# XGBoost -----------------------------------------------------------------
+
+# Specify boosted tree model
+xgb_spec <- boost_tree(
+  trees = 500,
+  tree_depth = tune(),
+  min_n = tune(),
+  loss_reduction = tune(),
+  sample_size = tune(),
+  mtry = tune(),
+  learn_rate = tune()
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("classification")
+
+# Create space filling parameter latin hypercube grid - regular grid too slow
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), credit_train),
+  learn_rate(),
+  size = 20
+)
+  
+# Tune XGBoost hyperparameters using space filling parameter grid
+doParallel::registerDoParallel()
+set.seed(1234)
+xgb_tune_rs <- tune_grid(
+  credit_wf %>% add_model(xgb_spec),
+  resamples = credit_folds,
+  grid = xgb_grid
+)
+
+saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
+xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
 # Evaluate Models ---------------------------------------------------------
 
