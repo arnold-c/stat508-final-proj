@@ -10,6 +10,7 @@
 library(tidyverse)
 library(tidymodels)
 library(themis)
+library(vip)
 library(kknn)
 library(here)
 library(kableExtra)
@@ -89,6 +90,14 @@ glm_spec <- logistic_reg() %>%
 # 
 # saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
+
+# Examine which variables are most important
+glm_spec %>%
+  set_engine("glm") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point")
 
 # Random Forest -----------------------------------------------------------
 
@@ -181,6 +190,14 @@ rf_final_spec <- finalize_model(
   best_rf_auc
 )
 
+# Examine which variables are most important
+rf_final_spec %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point")
+
 # Fit random forest model to all folds in training data (resampling), saving certain metrics
 rf_final_rs <- credit_wf %>%
   add_model(rf_final_spec) %>%
@@ -244,7 +261,7 @@ xgb_tune_rs %>%
   labs(y = "AUC") +
   facet_wrap(~parameter, scales = "free_x")
 
-show_best(xgxgb_tune_rs, "roc_auc")
+show_best(xgb_tune_rs, "roc_auc")
 
 best_xgb_auc <- select_best(xgxgb_tune_rs, "roc_auc")
 
@@ -253,7 +270,15 @@ xgb_final_spec <- finalize_model(
   best_xgb_auc
 )
 
-# Fit random forest model to all folds in training data (resampling), saving certain metrics
+# Examine which variables are most important
+xgb_final_spec %>%
+  set_engine("xgboost", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point")
+
+# Fit XGBoost model to all folds in training data (resampling), saving certain metrics
 xgb_final_rs <- credit_wf %>%
   add_model(xgb_final_spec) %>%
   fit_resamples(
@@ -268,6 +293,7 @@ xgb_final_rs
 
 collect_metrics(glm_rs)
 collect_metrics(rf_final_rs)
+collect_metrics(xgb_final_rs)
 
 
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
