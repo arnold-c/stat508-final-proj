@@ -125,6 +125,13 @@ credit %>%
 
 # PCA Importance
 
+Even though we don't have the original data for a full exploration of the PCs,
+we can still look at the importance of the individual PCs in explaining the 
+total variance in the data as we know that the variance observed in each PC
+is equal to its eigenvalue (https://online.stat.psu.edu/stat505/lesson/11/11.2).
+Therefore we can still calculate the relative proportions of variance explained,
+without needed the eigenvalue outputs of the standard `prcomp` function.
+
 ```{r}
 vars <- credit %>%
   select(-c(Time, Amount, log_amount, Class)) %>%
