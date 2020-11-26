@@ -111,3 +111,13 @@ The only correlations are between `V3` and `Time`, and `V2` and `log_amount`.
 This is as expected as PCA produces orthogonal linear combinations,
 therefore there shouldn't be much correlation between them.
 
+```{r}
+credit %>%
+  mutate(
+    trans_time = scale(Time, center = TRUE),
+    trans_amount = scale(log_amount, center = TRUE)
+    ) %>%
+  select(-c(Amount, Time, log_amount)) %>%
+  cor() %>%
+  corrplot(method = "square", type = "upper")
+```
