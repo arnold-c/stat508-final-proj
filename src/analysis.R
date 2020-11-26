@@ -98,14 +98,14 @@ rf_spec <- rand_forest(
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
 # Tune random forest hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-rf_tune_rs <- tune_grid(
-  credit_wf %>% add_model(rf_spec),
-  resamples = credit_folds,
-  grid = 20
-)
-
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# rf_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(rf_spec),
+#   resamples = credit_folds,
+#   grid = 20
+# )
+# 
 # saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
 rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 
@@ -127,7 +127,7 @@ rf_tune_rs %>%
 
 rf_grid <- grid_regular(
   mtry(range = c(0, 25)),
-  min_n(range = c(2, 25)),
+  min_n(range = c(1, 10)),
   levels = 6
 )
 
@@ -142,7 +142,7 @@ rf_grid
 #   grid = rf_grid
 # )
 # 
-# saveRDS(rf_reg_rs, file = here("out", "rf_reg_tune_rs.rds"))
+# saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
 rf_reg_tune_rs %>%
@@ -163,10 +163,12 @@ rf_reg_tune_rs %>%
   geom_point() +
   labs(y = "Accuracy")
 
-#' We can see from the plot of AUC that the best combination is `min_n = 2`, and 
+#' We can see from the plot of AUC that the best combination is `min_n = 1`, and 
 #' `mtry = 10`. There seems to be a decline in accuracy from `mtry = 5`, however,
 #' this is likely due to reduced sensitivity and improved specificity, which is
 #' the opposite of what we're interested in given the class imbalance.
+#' It is generally accepted that good starting points are `mtry = sqrt(p)` (c. 5)
+#' and `min_n = 1` for classification models (https://bradleyboehmke.github.io/HOML/random-forest.html)
 
 best_auc <- select_best(rf_reg_tune_rs, "roc_auc")
 
