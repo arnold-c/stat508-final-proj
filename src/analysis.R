@@ -174,11 +174,11 @@ rf_reg_tune_rs %>%
 #' It is generally accepted that good starting points are `mtry = sqrt(p)` (c. 5)
 #' and `min_n = 1` for classification models (https://bradleyboehmke.github.io/HOML/random-forest.html)
 
-best_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_auc <- select_best(rf_reg_tune_rs, "roc_auc")
 
 rf_final_spec <- finalize_model(
   rf_spec,
-  best_auc
+  best_rf_auc
 )
 
 # Fit random forest model to all folds in training data (resampling), saving certain metrics
@@ -230,6 +230,37 @@ xgb_tune_rs <- tune_grid(
 
 saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
+
+xgb_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, mtry:sample_size) %>%
+  pivot_longer(
+    mtry:sample_size,
+    names_to = "parameter",
+    values_to = "value") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(y = "AUC") +
+  facet_wrap(~parameter, scales = "free_x")
+
+best_xgb_auc <- show_best(xgxgb_tune_rs, "roc_auc")
+
+xgb_final_spec <- finalize_model(
+  xgb_spec,
+  best_xgb_auc
+)
+
+# Fit random forest model to all folds in training data (resampling), saving certain metrics
+xgb_final_rs <- credit_wf %>%
+  add_model(xgb_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+xgb_final_rs
 
 # Evaluate Models ---------------------------------------------------------
 
