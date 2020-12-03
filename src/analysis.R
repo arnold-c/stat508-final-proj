@@ -398,7 +398,7 @@ bag_imp$fit$imp %>%
   labs(title = "Bagged Tree VIP")
 
 # Fit bagged tree model to all folds in training data (resampling), saving certain metrics
-bag_final_rs <- all_prov_wf %>%
+bag_final_rs <- credit_wf %>%
   add_model(bag_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
@@ -417,15 +417,96 @@ bag_final_met <- bag_final_rs %>%
   collect_metrics() %>%
   mutate(model = "Bagged Tree")
 
+# GLMNET ------------------------------------------------------------------
+
+# Specify GLMNET model
+glmnet_spec <- logistic_reg(
+  penalty = tune(),
+  mixture = tune()
+) %>%
+  set_engine("glmnet")
+
+# Create grid to tune penalty and mixture (Lasso vs Ridge)
+glmnet_grid <- grid_latin_hypercube(
+  penalty(),
+  mixture(),
+  size = 20
+)
+
+doParallel::registerDoParallel()
+set.seed(1234)
+glmnet_tune_rs <- tune_grid(
+  credit_wf %>% add_model(glmnet_spec),
+  resamples = credit_folds,
+  grid = glmnet_grid
+)
+
+saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
+glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
+
+# Examine AUC for hyperparameters
+glmnet_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, penalty, mixture) %>%
+  pivot_longer(
+    penalty:mixture,
+    names_to = "parameter",
+    values_to = "value") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(y = "AUC") +
+  facet_wrap(~parameter, scales = "free_x")
+
+best_glmnet_auc <- select_best(glmnet_tune_rs, metric = "roc_auc")
+
+# Specify optimized GLMNET model
+glmnet_final_spec <- finalize_model(
+  glmnet_spec,
+  best_glmnet_auc
+)
+
+# Examine which variables are most important
+glmnet_final_spec %>%
+  set_engine("glmnet", importance = "permutation") %>%
+  fit(rougeole ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "GLMNET VIP")
+
+# Fit GLMNET model to all folds in training data (resampling), saving certain metrics
+glmnet_final_rs <- credit_wf %>%
+  add_model(glmnet_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+# Create roc curve
+glmnet_final_roc <- glmnet_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Class) %>% 
+  mutate(model = "GLMNET")
+
+# Create tibble of metrics
+glmnet_final_met <- glmnet_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "GLMNET")
+
+
+
 # Evaluate Models ---------------------------------------------------------
 
 glm_met
 rf_final_met
 xgb_final_met
 bag_final_met
+glmnet_final_met
 
 all_met <- bind_rows(
-  glm_met, rf_final_met, xgb_final_met, bag_final_met
+  glm_met, rf_final_met, xgb_final_met, bag_final_met, glmnet_final_met
 )
 
 # Rank all models by AUC
@@ -450,7 +531,7 @@ all_met %>%
 
 # Plot ROC curves
 bind_rows(
-  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc
+  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
