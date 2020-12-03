@@ -9,6 +9,7 @@
 
 library(tidyverse)
 library(tidymodels)
+library(baguette)
 library(themis)
 library(vip)
 library(kknn)
@@ -16,6 +17,7 @@ library(here)
 library(kableExtra)
 library(hrbrthemes)
 library(janitor)
+library(skimr)
 
 RNGkind(sample.kind = "Rounding")
 set.seed(1)
@@ -36,6 +38,8 @@ credit <- credit %>%
   select(-Amount)
 
 tabyl(credit$Class)
+
+levels(credit$Class)
 
 # Pre-Processing ----------------------------------------------------------
 
@@ -99,6 +103,17 @@ glm_spec %>%
   ) %>%
   vip(geom = "point") +
   labs(title = "Logistic Regression VIP")
+
+# Create roc curve
+glm_roc <- glm_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "Logistic Regression")
+
+# Create tibble of metrics
+glm_met <- glm_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Logistic Regression")
 
 # Random Forest -----------------------------------------------------------
 
@@ -211,7 +226,16 @@ rf_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
-rf_final_rs
+# Create roc curve
+rf_final_roc <- rf_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "Random Forest")
+
+# Create tibble of metrics
+rf_final_met <- rf_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Random Forest")
 
 
 # XGBoost -----------------------------------------------------------------
@@ -293,13 +317,71 @@ xgb_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
-xgb_final_rs
+# Create roc curve
+xgb_final_roc <- xgb_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "XGBoost")
+
+# Create tibble of metrics
+xgb_final_met <- xgb_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "XGBoost")
 
 # Evaluate Models ---------------------------------------------------------
 
-collect_metrics(glm_rs)
-collect_metrics(rf_final_rs)
-collect_metrics(xgb_final_rs)
+glm_met
+rf_final_met
+xgb_final_met
+
+
+all_met <- bind_rows(
+  glm_met, rf_final_met, xgb_final_met 
+)
+
+# Rank all models by AUC
+all_met %>%
+  filter(.metric == "roc_auc") %>%
+  arrange(desc(mean))
+
+# Rank all models by sensitivity
+all_met %>%
+  filter(.metric == "sens") %>%
+  arrange(desc(mean))
+
+# Rank all models by specificity
+all_met %>%
+  filter(.metric == "spec") %>%
+  arrange(desc(mean))
+
+# Rank all models by accuracy
+all_met %>%
+  filter(.metric == "accuracy") %>%
+  arrange(desc(mean))
+
+# Plot ROC curves
+bind_rows(
+  glm_roc, rf_final_roc, xgb_final_roc
+) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") + 
+  coord_equal() + 
+  scale_color_ipsum()
+
+# Compare predicted positive vs outcome
+bind_rows(
+  collect_predictions() %>% mutate(model = ),
+  collect_predictions() %>% mutate(model = ),
+  collect_predictions() %>% mutate(model = ),
+  collect_predictions() %>% mutate(model = ),
+) %>%
+  ggplot(aes(x = .pred_Pos, fill = rougeole)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_ipsum() +
+  labs(caption = " best specificity () \n  best AUC () \n  best accuracy () \n  best sensitivity ()") +
+  facet_wrap(~model, scales = "free_y")
+
 
 
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
