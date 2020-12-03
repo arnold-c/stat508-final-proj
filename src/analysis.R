@@ -328,15 +328,104 @@ xgb_final_met <- xgb_final_rs %>%
   collect_metrics() %>%
   mutate(model = "XGBoost")
 
+# Bagged Tree -------------------------------------------------------------
+
+# Specify bagged tree model
+bag_spec <- bag_tree(
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = tune()
+) %>%
+  set_engine("rpart") %>%
+  set_mode("classification")
+
+# Create space filling parameter latin hypercube grid - regular grid too slow
+bag_grid <- grid_latin_hypercube(
+  cost_complexity(),
+  tree_depth(),
+  min_n(),
+  size = 20
+)
+
+# Tune bagged tree hyperparameters using space filling parameter grid
+doParallel::registerDoParallel()
+set.seed(1234)
+bag_tune_rs <- tune_grid(
+    credit_wf %>% add_model(bag_spec),
+    resamples = credit_folds,
+    grid = bag_grid
+)
+
+saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
+# bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
+
+# Examine AUC for hyperparameters
+bag_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, cost_complexity:min_n) %>%
+  pivot_longer(
+    cost_complexity:min_n,
+    names_to = "parameter",
+    values_to = "value") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(y = "AUC") +
+  facet_wrap(~parameter, scales = "free_x")
+
+show_best(bag_tune_rs, "roc_auc")
+
+# Select best parameters from tuning grid based on AUC
+best_bag_auc <- select_best(bag_tune_rs, "roc_auc")
+
+# Specify optimized bagged tree model
+bag_final_spec <- finalize_model(
+  bag_spec,
+  best_bag_auc
+)
+
+# Examine which variables are most important
+bag_imp <- bag_final_spec %>%
+  set_engine("rpart") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  )
+
+bag_imp$fit$imp %>%
+  mutate(term = fct_reorder(term, value)) %>%
+  ggplot(aes(x = value, y = term)) +
+  geom_point() +
+  labs(title = "Bagged Tree VIP")
+
+# Fit bagged tree model to all folds in training data (resampling), saving certain metrics
+bag_final_rs <- all_prov_wf %>%
+  add_model(bag_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+# Create roc curve
+bag_final_roc <- bag_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "Bagged Tree")
+
+# Create tibble of metrics
+bag_final_met <- bag_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Bagged Tree")
+
 # Evaluate Models ---------------------------------------------------------
 
 glm_met
 rf_final_met
 xgb_final_met
-
+bag_final_met
 
 all_met <- bind_rows(
-  glm_met, rf_final_met, xgb_final_met 
+  glm_met, rf_final_met, xgb_final_met, bag_final_met
 )
 
 # Rank all models by AUC
@@ -361,7 +450,7 @@ all_met %>%
 
 # Plot ROC curves
 bind_rows(
-  glm_roc, rf_final_roc, xgb_final_roc
+  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
