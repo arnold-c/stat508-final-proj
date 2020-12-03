@@ -442,7 +442,7 @@ glmnet_tune_rs <- tune_grid(
 )
 
 saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
-glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
+# glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 glmnet_tune_rs %>%
@@ -637,6 +637,70 @@ svmp_final_met <- svmp_final_rs %>%
 
 # kNN ---------------------------------------------------------------------
 
+knn_spec <- nearest_neighbor(
+  neighbors = tune()
+) %>%
+  set_engine("kknn") %>%
+  set_mode("classification")
+
+knn_grid <- grid_regular(
+  neighbors(range = c(1, 70)),
+  levels = 51
+)
+
+knn_grid
+
+# Tune kNN hyperparameters
+doParallel::registerDoParallel()
+set.seed(1234)
+knn_tune_rs <- tune_grid(
+  credit_wf %>% add_model(knn_spec),
+  resamples = credit_folds,
+  grid = knn_grid
+)
+
+saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
+# knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
+
+# Examine AUC for hyperparameters
+knn_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, neighbors) %>%
+  ggplot(aes(x = neighbors, y = mean)) +
+  geom_point() +
+  labs(y = "AUC")
+
+best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
+
+# Specify optimized svm model
+knn_final_spec <- finalize_model(
+  knn_spec,
+  best_knn_auc
+)
+
+# Fit kNN model to all folds in training data (resampling), saving certain metrics
+knn_final_rs <- credit_wf %>%
+  add_model(knn_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+# Create roc curve
+knn_final_roc <- knn_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "kNN")
+
+# Create tibble of metrics
+knn_final_met <- knn_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "kNN")
+
+
+
 # Evaluate Models ---------------------------------------------------------
 
 glm_met
@@ -644,9 +708,13 @@ rf_final_met
 xgb_final_met
 bag_final_met
 glmnet_final_met
+svmr_final_met
+svmp_final_met
+knn_final_met
 
 all_met <- bind_rows(
-  glm_met, rf_final_met, xgb_final_met, bag_final_met, glmnet_final_met
+  glm_met, rf_final_met, xgb_final_met, bag_final_met, glmnet_final_met,
+  svmr_final_met, svmp_final_met, knn_final_met
 )
 
 # Rank all models by AUC
@@ -671,7 +739,8 @@ all_met %>%
 
 # Plot ROC curves
 bind_rows(
-  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc
+  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc,
+  svmr_final_roc, svmp_final_roc, knn_final_roc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
