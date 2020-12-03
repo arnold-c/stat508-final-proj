@@ -495,6 +495,76 @@ glmnet_final_met <- glmnet_final_rs %>%
   collect_metrics() %>%
   mutate(model = "GLMNET")
 
+# SVM - Radial ------------------------------------------------------------
+
+svmr_spec <- svm_rbf(
+  cost = tune(),
+  rbf_sigma = tune()
+) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+svmr_grid <- grid_latin_hypercube(
+  cost(),
+  rbf_sigma(),
+  size = 20
+)
+
+doParallel::registerDoParallel()
+set.seed(1234)
+svmr_tune_rs <- tune_grid(
+  credit_wf %>% add_model(svmr_spec),
+  resamples = credit_folds,
+  grid = svmr_grid
+)
+
+saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
+# svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
+
+# Examine AUC for hyperparameters
+svmr_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, cost, rbf_sigma) %>%
+  pivot_longer(
+    cost:rbf_sigma,
+    names_to = "parameter",
+    values_to = "value") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(y = "AUC") +
+  facet_wrap(~parameter, scales = "free_x")
+
+best_svmr_auc <- select_best(svmr_tune_rs, metric = "roc_auc")
+
+# Specify optimized svm model
+svmr_final_spec <- finalize_model(
+  svmr_spec,
+  best_svmr_auc
+)
+
+# Fit svm model to all folds in training data (resampling), saving certain metrics
+svmr_final_rs <- credit_wf %>%
+  add_model(svmr_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+# Create roc curve
+svmr_final_roc <- svmr_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "SVM-R")
+
+# Create tibble of metrics
+svmr_final_met <- svmr_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "SVM-R")
+
+
+# SVM-P -------------------------------------------------------------------
 
 
 # Evaluate Models ---------------------------------------------------------
