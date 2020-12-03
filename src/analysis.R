@@ -566,6 +566,76 @@ svmr_final_met <- svmr_final_rs %>%
 
 # SVM-P -------------------------------------------------------------------
 
+svmp_spec <- svm_poly(
+  cost = tune(),
+  degree = tune(),
+  scale_factor = tune()
+) %>%
+  set_engine("kernlab") %>%
+  set_mode("classification")
+
+svmp_grid <- grid_latin_hypercube(
+  cost(),
+  degree(),
+  scale_factor(),
+  size = 20
+)
+
+doParallel::registerDoParallel()
+set.seed(1234)
+svmp_tune_rs <- tune_grid(
+    credit_wf %>% add_model(svmp_spec),
+    resamples = credit_folds,
+    grid = svmp_grid
+)
+
+saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
+# svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
+
+# Examine AUC for hyperparameters
+svmp_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, cost:scale_factor) %>%
+  pivot_longer(
+    cost:scale_factor,
+    names_to = "parameter",
+    values_to = "value") %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(y = "AUC") +
+  facet_wrap(~parameter, scales = "free_x")
+
+best_svmp_auc <- select_best(svmp_tune_rs, metric = "roc_auc")
+
+# Specify optimized svm model
+svmp_final_spec <- finalize_model(
+  svmp_spec,
+  best_svmp_auc
+)
+
+# Fit svm model to all folds in training data (resampling), saving certain metrics
+svmp_final_rs <- credit_wf %>%
+  add_model(svmp_final_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    control = control_resamples(save_pred = TRUE)
+  )
+
+# Create roc curve
+svmp_final_roc <- svmp_final_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "SVM-P")
+
+# Create tibble of metrics
+svmp_final_met <- svmp_final_rs %>%
+  collect_metrics() %>%
+  mutate(model = "SVM-P")
+
+
+# kNN ---------------------------------------------------------------------
 
 # Evaluate Models ---------------------------------------------------------
 
