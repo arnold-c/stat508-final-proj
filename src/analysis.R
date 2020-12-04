@@ -487,7 +487,7 @@ glmnet_final_rs <- credit_wf %>%
 # Create roc curve
 glmnet_final_roc <- glmnet_final_rs %>% 
   collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Class) %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "GLMNET")
 
 # Create tibble of metrics
@@ -750,18 +750,41 @@ bind_rows(
 
 # Compare predicted positive vs outcome
 bind_rows(
-  collect_predictions() %>% mutate(model = ),
-  collect_predictions() %>% mutate(model = ),
-  collect_predictions() %>% mutate(model = ),
-  collect_predictions() %>% mutate(model = ),
+  collect_predictions(svmr_final_rs) %>% mutate(model = "SVM-R"),
+  collect_predictions(glm_rs) %>% mutate(model = "Logistic Regression"),
+  collect_predictions(svmp_final_rs) %>% mutate(model = "SVM-P")
 ) %>%
-  ggplot(aes(x = .pred_Pos, fill = rougeole)) +
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
   geom_density(alpha = 0.6) +
   scale_fill_ipsum() +
-  labs(caption = " best specificity () \n  best AUC () \n  best accuracy () \n  best sensitivity ()") +
+  labs(caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
   facet_wrap(~model, scales = "free_y")
 
 
+# Calibration Plots -------------------------------------------------------
+
+# Logistic Regression
+glm_preds <- glm_rs %>%
+  collect_predictions()
+
+glm_cal <- caret::calibration(Class ~ .pred_Fraud, data = glm_preds)
+
+ggplot(glm_cal)
+
+# Random Forest
+rf_final_cal <- caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(rf_final_rs))
+
+ggplot(rf_final_cal)
+
+# SVM-P
+svmp_final_cal <- caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(svmp_final_rs))
+
+ggplot(svmp_final_cal)
+
+# SVM-R
+svmr_final_cal <- caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(svmr_final_rs))
+
+ggplot(svmr_final_cal)
 
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
 # 
