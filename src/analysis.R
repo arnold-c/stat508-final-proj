@@ -88,10 +88,13 @@ glm_spec <- logistic_reg() %>%
 #   add_model(glm_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
-#     metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+#     metrics = metric_set(
+#       roc_auc, accuracy, sensitivity, specificity, j_index, 
+#       ppv, npv, pr_auc
+#       ),
 #     control = control_resamples(save_pred = TRUE)
 #   )
-# 
+# # 
 # saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
@@ -109,6 +112,11 @@ glm_roc <- glm_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "Logistic Regression")
+
+# Create Precision-Recall curve (PPV-NPV)
+glm_prc <- glm_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 glm_met <- glm_rs %>%
