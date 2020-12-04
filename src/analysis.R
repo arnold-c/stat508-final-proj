@@ -348,16 +348,16 @@ bag_grid <- grid_latin_hypercube(
 )
 
 # Tune bagged tree hyperparameters using space filling parameter grid
-doParallel::registerDoParallel()
-set.seed(1234)
-bag_tune_rs <- tune_grid(
-    credit_wf %>% add_model(bag_spec),
-    resamples = credit_folds,
-    grid = bag_grid
-)
-
-saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
-# bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# bag_tune_rs <- tune_grid(
+#     credit_wf %>% add_model(bag_spec),
+#     resamples = credit_folds,
+#     grid = bag_grid
+# )
+# 
+# saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
+bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 bag_tune_rs %>%
@@ -433,16 +433,16 @@ glmnet_grid <- grid_latin_hypercube(
   size = 20
 )
 
-doParallel::registerDoParallel()
-set.seed(1234)
-glmnet_tune_rs <- tune_grid(
-  credit_wf %>% add_model(glmnet_spec),
-  resamples = credit_folds,
-  grid = glmnet_grid
-)
-
-saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
-# glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# glmnet_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(glmnet_spec),
+#   resamples = credit_folds,
+#   grid = glmnet_grid
+# )
+# 
+# saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
+glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 glmnet_tune_rs %>%
@@ -469,7 +469,7 @@ glmnet_final_spec <- finalize_model(
 # Examine which variables are most important
 glmnet_final_spec %>%
   set_engine("glmnet", importance = "permutation") %>%
-  fit(rougeole ~ .,
+  fit(Class ~ .,
       data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
@@ -510,16 +510,16 @@ svmr_grid <- grid_latin_hypercube(
   size = 20
 )
 
-doParallel::registerDoParallel()
-set.seed(1234)
-svmr_tune_rs <- tune_grid(
-  credit_wf %>% add_model(svmr_spec),
-  resamples = credit_folds,
-  grid = svmr_grid
-)
-
-saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
-# svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# svmr_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(svmr_spec),
+#   resamples = credit_folds,
+#   grid = svmr_grid
+# )
+# 
+# saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
+svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 svmr_tune_rs %>%
@@ -581,16 +581,16 @@ svmp_grid <- grid_latin_hypercube(
   size = 20
 )
 
-doParallel::registerDoParallel()
-set.seed(1234)
-svmp_tune_rs <- tune_grid(
-    credit_wf %>% add_model(svmp_spec),
-    resamples = credit_folds,
-    grid = svmp_grid
-)
-
-saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
-# svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# svmp_tune_rs <- tune_grid(
+#     credit_wf %>% add_model(svmp_spec),
+#     resamples = credit_folds,
+#     grid = svmp_grid
+# )
+# 
+# saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
+svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 svmp_tune_rs %>%
@@ -651,16 +651,16 @@ knn_grid <- grid_regular(
 knn_grid
 
 # Tune kNN hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-knn_tune_rs <- tune_grid(
-  credit_wf %>% add_model(knn_spec),
-  resamples = credit_folds,
-  grid = knn_grid
-)
-
-saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
-# knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# knn_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(knn_spec),
+#   resamples = credit_folds,
+#   grid = knn_grid
+# )
+# 
+# saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
+knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
 knn_tune_rs %>%
@@ -698,8 +698,6 @@ knn_final_roc <- knn_final_rs %>%
 knn_final_met <- knn_final_rs %>%
   collect_metrics() %>%
   mutate(model = "kNN")
-
-
 
 # Evaluate Models ---------------------------------------------------------
 
@@ -756,12 +754,34 @@ bind_rows(
 ) %>%
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
   geom_density(alpha = 0.6) +
+  geom_histogram() +
   scale_fill_ipsum() +
   labs(caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
   facet_wrap(~model, scales = "free_y")
 
 
 # Calibration Plots -------------------------------------------------------
+
+# All probs tibble
+train_preds <- glm_rs %>%
+  collect_predictions() %>%
+  select(Class, .pred_Fraud) %>%
+  transmute(
+    Class = Class,
+    glm = .pred_Fraud
+    )
+
+train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
+train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
+train_preds$bag <- collect_predictions(bag_final_rs)$.pred_Fraud
+train_preds$glmnet <- collect_predictions(glmnet_final_rs)$.pred_Fraud
+train_preds$svmr <- collect_predictions(svmr_final_rs)$.pred_Fraud
+train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
+train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
+``
+ggplot(caret::calibration(
+  Class ~ glm + rf + xgb + bag + glmnet + svmr + svmp + knn, 
+  data = train_preds)) 
 
 # Logistic Regression
 glm_preds <- glm_rs %>%
@@ -770,6 +790,8 @@ glm_preds <- glm_rs %>%
 glm_cal <- caret::calibration(Class ~ .pred_Fraud, data = glm_preds)
 
 ggplot(glm_cal)
+
+glm_preds %>% tabyl(Class, .pred_class)
 
 # Random Forest
 rf_final_cal <- caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(rf_final_rs))
