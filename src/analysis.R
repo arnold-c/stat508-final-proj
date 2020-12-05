@@ -132,19 +132,19 @@ lda_spec <- discrim_linear() %>%
   set_engine("MASS")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-doParallel::registerDoParallel()
-lda_rs <- credit_wf %>%
-  add_model(lda_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-      ),
-    control = control_resamples(save_pred = TRUE)
-  )
-#
-saveRDS(lda_rs, here("out", "lda_rs.rds"))
+# doParallel::registerDoParallel()
+# lda_rs <- credit_wf %>%
+#   add_model(lda_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = metric_set(
+#       roc_auc, accuracy, sensitivity, specificity, j_index,
+#       ppv, npv, pr_auc
+#       ),
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# #
+# saveRDS(lda_rs, here("out", "lda_rs.rds"))
 lda_rs <- readRDS(here("out", "lda_rs.rds"))
 
 # Create roc curve
@@ -278,6 +278,10 @@ rf_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
+saveRDS(rf_final_rs, file = here("out", "rf_final_rs.rds"))
+rf_final_rs <- readRDS(here("out", "rf_final_rs.rds"))
+
+
 # Create roc curve
 rf_final_roc <- rf_final_rs %>% 
   collect_predictions() %>% 
@@ -378,6 +382,9 @@ xgb_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
+saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
+xgb_final_rs <- readRDS(here("out", "xgb_final_rs.rds"))
+
 # Create roc curve
 xgb_final_roc <- xgb_final_rs %>% 
   collect_predictions() %>% 
@@ -476,6 +483,9 @@ bag_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
+saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
+bag_final_rs <- readRDS(here("out", "bag_final_rs.rds"))
+
 # Create roc curve
 bag_final_roc <- bag_final_rs %>% 
   collect_predictions() %>% 
@@ -563,6 +573,9 @@ glmnet_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
+saveRDS(glmnet_final_rs, file = here("out", "glmnet_final_rs.rds"))
+glmnet_final_rs <- readRDS(here("out", "glmnet_final_rs.rds"))
+
 # Create roc curve
 glmnet_final_roc <- glmnet_final_rs %>% 
   collect_predictions() %>% 
@@ -639,6 +652,9 @@ svmr_final_rs <- credit_wf %>%
     ),
     control = control_resamples(save_pred = TRUE)
   )
+
+saveRDS(svmr_final_rs, file = here("out", "svmr_final_rs.rds"))
+svmr_final_rs <- readRDS(here("out", "svmr_final_rs.rds"))
 
 # Create roc curve
 svmr_final_roc <- svmr_final_rs %>% 
@@ -720,6 +736,9 @@ svmp_final_rs <- credit_wf %>%
     control = control_resamples(save_pred = TRUE)
   )
 
+saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
+svmp_final_rs <- readRDS(here("out", "svmp_final_rs.rds"))
+
 # Create roc curve
 svmp_final_roc <- svmp_final_rs %>% 
   collect_predictions() %>% 
@@ -793,6 +812,9 @@ knn_final_rs <- credit_wf %>%
     ),
     control = control_resamples(save_pred = TRUE)
   )
+
+saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
+knn_final_rs <- readRDS(here("out", "knn_final_rs.rds"))
 
 # Create roc curve
 knn_final_roc <- knn_final_rs %>% 
