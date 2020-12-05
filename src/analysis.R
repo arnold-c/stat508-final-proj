@@ -13,6 +13,7 @@ library(baguette)
 library(themis)
 library(vip)
 library(kknn)
+library(discrim)
 library(here)
 library(kableExtra)
 library(hrbrthemes)
@@ -123,6 +124,45 @@ glm_prc <- glm_rs %>%
 glm_met <- glm_rs %>%
   collect_metrics() %>%
   mutate(model = "Logistic Regression")
+
+# LDA ---------------------------------------------------------------------
+
+# Specify LDA model
+lda_spec <- discrim_linear() %>%
+  set_engine("MASS")
+
+# Fit logistic model to all folds in training data (resampling), saving certain metrics
+doParallel::registerDoParallel()
+lda_rs <- credit_wf %>%
+  add_model(lda_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+      ),
+    control = control_resamples(save_pred = TRUE)
+  )
+#
+saveRDS(lda_rs, here("out", "lda_rs.rds"))
+lda_rs <- readRDS(here("out", "lda_rs.rds"))
+
+# Create roc curve
+lda_roc <- lda_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "LDA")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+lda_prc <- lda_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "LDA")
+
+# Create tibble of metrics
+lda_met <- lda_rs %>%
+  collect_metrics() %>%
+  mutate(model = "LDA")
 
 # Random Forest -----------------------------------------------------------
 
@@ -245,7 +285,7 @@ rf_final_roc <- rf_final_rs %>%
   mutate(model = "Random Forest")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-rf_prc <- rf_final_rs %>% 
+rf_final_prc <- rf_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Random Forest")
@@ -345,7 +385,7 @@ xgb_final_roc <- xgb_final_rs %>%
   mutate(model = "XGBoost")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-xgb_prc <- xgb_final_rs %>% 
+xgb_final_prc <- xgb_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "XGBoost")
@@ -443,7 +483,7 @@ bag_final_roc <- bag_final_rs %>%
   mutate(model = "Bagged Tree")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-bag_prc <- bag_final_rs %>% 
+bag_final_prc <- bag_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Bagged Tree")
@@ -530,7 +570,7 @@ glmnet_final_roc <- glmnet_final_rs %>%
   mutate(model = "GLMNET")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-glmnet_prc <- glmnet_final_rs %>% 
+glmnet_final_prc <- glmnet_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "GLMNET")
@@ -607,7 +647,7 @@ svmr_final_roc <- svmr_final_rs %>%
   mutate(model = "SVM-R")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-svmr_prc <- svmr_final_rs %>% 
+svmr_final_prc <- svmr_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-R")
@@ -687,7 +727,7 @@ svmp_final_roc <- svmp_final_rs %>%
   mutate(model = "SVM-P")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-svmp_prc <- svmp_final_rs %>% 
+svmp_final_prc <- svmp_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-P")
@@ -761,7 +801,7 @@ knn_final_roc <- knn_final_rs %>%
   mutate(model = "kNN")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-knn_prc <- knn_final_rs %>% 
+knn_final_prc <- knn_final_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "kNN")
@@ -771,9 +811,11 @@ knn_final_met <- knn_final_rs %>%
   collect_metrics() %>%
   mutate(model = "kNN")
 
+
 # Evaluate Models ---------------------------------------------------------
 
 glm_met
+lda_met
 rf_final_met
 xgb_final_met
 bag_final_met
@@ -783,8 +825,8 @@ svmp_final_met
 knn_final_met
 
 all_met <- bind_rows(
-  glm_met, rf_final_met, xgb_final_met, bag_final_met, glmnet_final_met,
-  svmr_final_met, svmp_final_met, knn_final_met
+  glm_met, lda_met, rf_final_met, xgb_final_met, bag_final_met, 
+  glmnet_final_met, svmr_final_met, svmp_final_met, knn_final_met
 )
 
 # Rank all models by AUC
@@ -835,8 +877,8 @@ bind_rows(
 
 # Plot Precision-Recall curves
 bind_rows(
-  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc,
-  svmr_final_roc, svmp_final_roc, knn_final_roc
+  glm_prc, lda_prc, rf_final_prc, xgb_final_prc, bag_final_prc, glmnet_final_prc,
+  svmr_final_prc, svmp_final_prc, knn_final_prc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
@@ -851,11 +893,10 @@ bind_rows(
   collect_predictions(svmp_final_rs) %>% mutate(model = "SVM-P")
 ) %>%
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
-  geom_density(alpha = 0.6) +
   geom_histogram() +
   scale_fill_ipsum() +
   labs(caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
-  facet_wrap(~model, scales = "free_y")
+  facet_wrap(~ model + Class, scales = "free_y")
 
 
 # Calibration Plots -------------------------------------------------------
@@ -869,6 +910,7 @@ train_preds <- glm_rs %>%
     glm = .pred_Fraud
   )
 
+train_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
 train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
 train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
 train_preds$bag <- collect_predictions(bag_final_rs)$.pred_Fraud
@@ -878,7 +920,7 @@ train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
 train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
 
 calib_df <- caret::calibration(
-  Class ~ glm + rf + xgb + bag + glmnet + svmr + svmp + knn, 
+  Class ~ glm + lda + rf + xgb + bag + glmnet + svmr + svmp + knn, 
   data = train_preds)$data
 
 ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
@@ -911,6 +953,9 @@ ggplot(svmp_final_cal)
 svmr_final_cal <- caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(svmr_final_rs))
 
 ggplot(svmr_final_cal)
+
+# kNN
+ggplot(caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(knn_final_rs)))
 
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
 # 
