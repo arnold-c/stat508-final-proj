@@ -198,7 +198,9 @@ rf_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point(show.legend = FALSE) +
   facet_wrap(~parameter, scales = "free_x") + 
-  labs(x = NULL, y = "AUC")
+  labs(x = NULL, y = "AUC", 
+       title = "Random Forest - AUROC vs hyperparameter tuning values",
+       subtitle = "Initial tuning")
 
 #' We can see that lower values of `min_n` are better, and no pattern with `mtry`.
 #' Let's create a regular grid to do a finer optimization.
@@ -231,7 +233,9 @@ rf_reg_tune_rs %>%
   ggplot(aes(x = mtry, y = mean, color = min_n)) +
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
-  labs(y = "AUC")
+  labs(y = "AUC", 
+       title = "Random Forest - AUROC vs hyperparameter tuning values",
+       subtitle = "Regular grid tuning")
 
 # Examine accuracy for hyperparameters
 rf_reg_tune_rs %>%
@@ -241,7 +245,9 @@ rf_reg_tune_rs %>%
   ggplot(aes(x = mtry, y = mean, color = min_n)) +
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
-  labs(y = "Accuracy")
+  labs(y = "Accuracy",
+       title = "Random Forest - Accuracy vs hyperparameter tuning values",
+       subtitle = "Regular grid tuning")
 
 #' We can see from the plot of AUC that the best combination is `min_n = 1`, and 
 #' `mtry = 10`. There seems to be a decline in accuracy from `mtry = 5`, however,
@@ -349,7 +355,9 @@ xgb_tune_rs %>%
     values_to = "value") %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC") +
+  labs(y = "AUC",
+       title = "XGBoost - AUROC vs hyperparameter tuning values",
+       subtitle = "LHS grid tuning") +
   facet_wrap(~parameter, scales = "free_x")
 
 show_best(xgb_tune_rs, "roc_auc")
@@ -444,7 +452,9 @@ bag_tune_rs %>%
     values_to = "value") %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC") +
+  labs(y = "AUC",
+       title = "Bagged Tree - AUROC vs hyperparameter tuning values",
+       subtitle = "LHS grid tuning") +
   facet_wrap(~parameter, scales = "free_x")
 
 show_best(bag_tune_rs, "roc_auc")
@@ -541,7 +551,9 @@ glmnet_tune_rs %>%
     values_to = "value") %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC") +
+  labs(y = "AUC",
+       title = "GLMNET - AUROC vs hyperparameter tuning values",
+       subtitle = "LHS grid tuning") +
   facet_wrap(~parameter, scales = "free_x")
 
 best_glmnet_auc <- select_best(glmnet_tune_rs, metric = "roc_auc")
@@ -630,7 +642,9 @@ svmr_tune_rs %>%
     values_to = "value") %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC") +
+  labs(y = "AUC",
+       title = "SVM Radial - AUROC vs hyperparameter tuning values",
+       subtitle = "LHS grid tuning") +
   facet_wrap(~parameter, scales = "free_x")
 
 best_svmr_auc <- select_best(svmr_tune_rs, metric = "roc_auc")
@@ -713,7 +727,9 @@ svmp_tune_rs %>%
     values_to = "value") %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC") +
+  labs(y = "AUC",
+       title = "SVM Polynomial - AUROC vs hyperparameter tuning values",
+       subtitle = "LHS grid tuning") +
   facet_wrap(~parameter, scales = "free_x")
 
 best_svmp_auc <- select_best(svmp_tune_rs, metric = "roc_auc")
@@ -791,7 +807,9 @@ knn_tune_rs %>%
   select(mean, neighbors) %>%
   ggplot(aes(x = neighbors, y = mean)) +
   geom_point() +
-  labs(y = "AUC")
+  labs(y = "AUC",
+       title = "kNN - AUROC vs hyperparameter tuning values",
+       subtitle = "Regular grid tuning")
 
 best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
 
@@ -894,7 +912,8 @@ bind_rows(
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") + 
-  coord_equal() + 
+  coord_equal() +
+  labs(title = "ROC plots for all models") +
   scale_color_ipsum()
 
 # Plot Precision-Recall curves
@@ -906,6 +925,7 @@ bind_rows(
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") + 
   coord_equal() + 
+  labs(title = "Precision (PPV) - Recall (Sens) curves for all models") +
   scale_color_ipsum()
 
 # Compare predicted positive vs outcome
@@ -917,7 +937,8 @@ bind_rows(
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
   geom_histogram() +
   scale_fill_ipsum() +
-  labs(caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
+  labs(title = "Predicted probability of fraud distributions by known class",
+    caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
   facet_wrap(~ model + Class, scales = "free_y")
 
 
@@ -949,6 +970,9 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_abline(color = "grey30", linetype = 2) +
   geom_point(size = 1.5, alpha = 0.6) +
   geom_line(size = 1, alpha = 0.6) +
+  labs(
+    title = "Calibration plots for all models",
+    caption = "Perfect calibration lies on the diagonal")
   scale_color_ipsum()
 
 # Logistic Regression
