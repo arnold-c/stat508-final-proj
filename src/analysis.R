@@ -116,7 +116,8 @@ glm_roc <- glm_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 glm_prc <- glm_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Logistic Regression")
 
 # Create tibble of metrics
 glm_met <- glm_rs %>%
@@ -246,7 +247,8 @@ rf_final_roc <- rf_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 rf_prc <- rf_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Random Forest")
 
 # Create tibble of metrics
 rf_final_met <- rf_final_rs %>%
@@ -279,7 +281,7 @@ xgb_grid <- grid_latin_hypercube(
   learn_rate(),
   size = 20
 )
-  
+
 # Tune XGBoost hyperparameters using space filling parameter grid
 # doParallel::registerDoParallel()
 # set.seed(1234)
@@ -345,7 +347,8 @@ xgb_final_roc <- xgb_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 xgb_prc <- xgb_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "XGBoost")
 
 # Create tibble of metrics
 xgb_final_met <- xgb_final_rs %>%
@@ -442,7 +445,8 @@ bag_final_roc <- bag_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 bag_prc <- bag_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Bagged Tree")
 
 # Create tibble of metrics
 bag_final_met <- bag_final_rs %>%
@@ -528,7 +532,8 @@ glmnet_final_roc <- glmnet_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 glmnet_prc <- glmnet_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "GLMNET")
 
 # Create tibble of metrics
 glmnet_final_met <- glmnet_final_rs %>%
@@ -604,7 +609,8 @@ svmr_final_roc <- svmr_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 svmr_prc <- svmr_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-R")
 
 # Create tibble of metrics
 svmr_final_met <- svmr_final_rs %>%
@@ -683,7 +689,8 @@ svmp_final_roc <- svmp_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 svmp_prc <- svmp_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-P")
 
 # Create tibble of metrics
 svmp_final_met <- svmp_final_rs %>%
@@ -756,7 +763,8 @@ knn_final_roc <- knn_final_rs %>%
 # Create Precision-Recall curve (PPV-Sensitivity)
 knn_prc <- knn_rs %>% 
   collect_predictions() %>% 
-  pr_curve(truth = Class, .pred_Fraud)
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "kNN")
 
 # Create tibble of metrics
 knn_final_met <- knn_final_rs %>%
@@ -799,7 +807,33 @@ all_met %>%
   filter(.metric == "accuracy") %>%
   arrange(desc(mean))
 
+# Rank all models by AUPRC
+all_met %>%
+  filter(.metric == "pr_auc") %>%
+  arrange(desc(mean))
+
+# Rank all models by PPV
+all_met %>%
+  filter(.metric == "ppv") %>%
+  arrange(desc(mean))
+
+# Rank all models by NPV
+all_met %>%
+  filter(.metric == "npv") %>%
+  arrange(desc(mean))
+
 # Plot ROC curves
+bind_rows(
+  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc,
+  svmr_final_roc, svmp_final_roc, knn_final_roc
+) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") + 
+  coord_equal() + 
+  scale_color_ipsum()
+
+# Plot Precision-Recall curves
 bind_rows(
   glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc,
   svmr_final_roc, svmp_final_roc, knn_final_roc
@@ -833,7 +867,7 @@ train_preds <- glm_rs %>%
   transmute(
     Class = Class,
     glm = .pred_Fraud
-    )
+  )
 
 train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
 train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
