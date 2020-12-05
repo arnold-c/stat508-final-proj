@@ -113,7 +113,7 @@ glm_roc <- glm_rs %>%
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "Logistic Regression")
 
-# Create Precision-Recall curve (PPV-NPV)
+# Create Precision-Recall curve (PPV-Sensitivity)
 glm_prc <- glm_rs %>% 
   collect_predictions() %>% 
   pr_curve(truth = Class, .pred_Fraud)
@@ -230,7 +230,10 @@ rf_final_rs <- credit_wf %>%
   add_model(rf_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -239,6 +242,11 @@ rf_final_roc <- rf_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "Random Forest")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+rf_prc <- rf_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 rf_final_met <- rf_final_rs %>%
@@ -321,7 +329,10 @@ xgb_final_rs <- credit_wf %>%
   add_model(xgb_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -330,6 +341,11 @@ xgb_final_roc <- xgb_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "XGBoost")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+xgb_prc <- xgb_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 xgb_final_met <- xgb_final_rs %>%
@@ -410,7 +426,10 @@ bag_final_rs <- credit_wf %>%
   add_model(bag_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -419,6 +438,11 @@ bag_final_roc <- bag_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "Bagged Tree")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+bag_prc <- bag_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 bag_final_met <- bag_final_rs %>%
@@ -488,7 +512,10 @@ glmnet_final_rs <- credit_wf %>%
   add_model(glmnet_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -497,6 +524,11 @@ glmnet_final_roc <- glmnet_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "GLMNET")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+glmnet_prc <- glmnet_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 glmnet_final_met <- glmnet_final_rs %>%
@@ -556,7 +588,10 @@ svmr_final_rs <- credit_wf %>%
   add_model(svmr_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -566,13 +601,18 @@ svmr_final_roc <- svmr_final_rs %>%
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "SVM-R")
 
+# Create Precision-Recall curve (PPV-Sensitivity)
+svmr_prc <- svmr_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
+
 # Create tibble of metrics
 svmr_final_met <- svmr_final_rs %>%
   collect_metrics() %>%
   mutate(model = "SVM-R")
 
 
-# SVM-P -------------------------------------------------------------------
+# SVM - Polynomial --------------------------------------------------------
 
 svmp_spec <- svm_poly(
   cost = tune(),
@@ -627,7 +667,10 @@ svmp_final_rs <- credit_wf %>%
   add_model(svmp_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -636,6 +679,11 @@ svmp_final_roc <- svmp_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "SVM-P")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+svmp_prc <- svmp_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 svmp_final_met <- svmp_final_rs %>%
@@ -692,7 +740,10 @@ knn_final_rs <- credit_wf %>%
   add_model(knn_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity, j_index),
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+    ),
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -701,6 +752,11 @@ knn_final_roc <- knn_final_rs %>%
   collect_predictions() %>% 
   roc_curve(truth = Class, .pred_Fraud) %>% 
   mutate(model = "kNN")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+knn_prc <- knn_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud)
 
 # Create tibble of metrics
 knn_final_met <- knn_final_rs %>%
@@ -786,10 +842,16 @@ train_preds$glmnet <- collect_predictions(glmnet_final_rs)$.pred_Fraud
 train_preds$svmr <- collect_predictions(svmr_final_rs)$.pred_Fraud
 train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
 train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
-``
-ggplot(caret::calibration(
+
+calib_df <- caret::calibration(
   Class ~ glm + rf + xgb + bag + glmnet + svmr + svmp + knn, 
-  data = train_preds)) 
+  data = train_preds)$data
+
+ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
+  geom_abline(color = "grey30", linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.6) +
+  geom_line(size = 1, alpha = 0.6) +
+  scale_color_ipsum()
 
 # Logistic Regression
 glm_preds <- glm_rs %>%
