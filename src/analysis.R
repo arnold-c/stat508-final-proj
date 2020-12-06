@@ -992,6 +992,11 @@ bind_rows(
 
 # Calibration Plots -------------------------------------------------------
 
+#' Calibration plots indicate how much the observed probabilities of an outcome
+#' (Fraud) predicted in bins match the probabilities observed, i.e. the 0-0.1
+#' probability bin would expect to see Fraud observed 5% of the time (the midpoint
+#' of the bin, therefore average probability of the bin)
+
 # All probs tibble
 train_preds <- glm_rs %>%
   collect_predictions() %>%
@@ -1020,7 +1025,7 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
-    caption = "Perfect calibration lies on the diagonal")
+    caption = "Perfect calibration lies on the diagonal") +
   scale_color_ipsum()
 
 # Logistic Regression
@@ -1093,3 +1098,11 @@ ggplot(caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(knn_fi
 
 
 #' Seems like `V17` has a very large positive impact on being predicted Fraud.
+
+
+# Test Data ---------------------------------------------------------------
+
+credit_wf %>%
+  add_model(glm_spec) %>%
+  last_fit(credit_split, metrics = metric_set(roc_auc, sens, spec, ppv, npv, pr_auc, kap)) %>%
+  collect_metrics()
