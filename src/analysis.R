@@ -77,6 +77,12 @@ credit_rec <-
 credit_wf <- workflow() %>%
   add_recipe(credit_rec)
 
+# Create list of metrics to record in model fits
+model_mets <- metric_set(
+  roc_auc, accuracy, sensitivity, specificity, j_index,
+  ppv, npv, pr_auc
+)
+
 # Logistic Regression -----------------------------------------------------
 
 # Specify logistic model
@@ -89,13 +95,10 @@ glm_spec <- logistic_reg() %>%
 #   add_model(glm_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
-#     metrics = metric_set(
-#       roc_auc, accuracy, sensitivity, specificity, j_index, 
-#       ppv, npv, pr_auc
-#       ),
+#     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
-# # 
+#
 # saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
@@ -137,10 +140,7 @@ lda_spec <- discrim_linear() %>%
 #   add_model(lda_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
-#     metrics = metric_set(
-#       roc_auc, accuracy, sensitivity, specificity, j_index,
-#       ppv, npv, pr_auc
-#       ),
+#     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # #
@@ -177,13 +177,10 @@ qda_rs <- credit_wf %>%
   add_model(qda_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-      ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
-#
+
 saveRDS(qda_rs, here("out", "qda_rs.rds"))
 qda_rs <- readRDS(here("out", "qda_rs.rds"))
 
@@ -222,6 +219,7 @@ rf_spec <- rand_forest(
 # rf_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(rf_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = 20
 # )
 # 
@@ -254,12 +252,13 @@ rf_grid <- grid_regular(
 
 rf_grid
 
-
+# Fit Random Forest with regular tuning grid that is more focussed
 # doParallel::registerDoParallel()
 # set.seed(1234)
 # rf_reg_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(rf_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = rf_grid
 # )
 # 
@@ -322,10 +321,7 @@ rf_final_rs <- credit_wf %>%
   add_model(rf_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -383,6 +379,7 @@ xgb_grid <- grid_latin_hypercube(
 # xgb_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(xgb_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = xgb_grid
 # )
 # 
@@ -428,10 +425,7 @@ xgb_final_rs <- credit_wf %>%
   add_model(xgb_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -480,6 +474,7 @@ bag_grid <- grid_latin_hypercube(
 # bag_tune_rs <- tune_grid(
 #     credit_wf %>% add_model(bag_spec),
 #     resamples = credit_folds,
+#     metrics = model_mets,
 #     grid = bag_grid
 # )
 # 
@@ -531,10 +526,7 @@ bag_final_rs <- credit_wf %>%
   add_model(bag_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -579,6 +571,7 @@ glmnet_grid <- grid_latin_hypercube(
 # glmnet_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(glmnet_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = glmnet_grid
 # )
 # 
@@ -623,10 +616,7 @@ glmnet_final_rs <- credit_wf %>%
   add_model(glmnet_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -670,6 +660,7 @@ svmr_grid <- grid_latin_hypercube(
 # svmr_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(svmr_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = svmr_grid
 # )
 # 
@@ -705,10 +696,7 @@ svmr_final_rs <- credit_wf %>%
   add_model(svmr_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -755,6 +743,7 @@ svmp_grid <- grid_latin_hypercube(
 # svmp_tune_rs <- tune_grid(
 #     credit_wf %>% add_model(svmp_spec),
 #     resamples = credit_folds,
+#     metrics = model_mets,
 #     grid = svmp_grid
 # )
 # 
@@ -790,10 +779,7 @@ svmp_final_rs <- credit_wf %>%
   add_model(svmp_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -839,6 +825,7 @@ knn_grid
 # knn_tune_rs <- tune_grid(
 #   credit_wf %>% add_model(knn_spec),
 #   resamples = credit_folds,
+#   metrics = model_mets,
 #   grid = knn_grid
 # )
 # 
@@ -869,10 +856,7 @@ knn_final_rs <- credit_wf %>%
   add_model(knn_final_spec) %>%
   fit_resamples(
     resamples = credit_folds,
-    metrics = metric_set(
-      roc_auc, accuracy, sensitivity, specificity, j_index,
-      ppv, npv, pr_auc
-    ),
+    metrics = model_mets,
     control = control_resamples(save_pred = TRUE)
   )
 
@@ -1028,7 +1012,6 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   labs(
     title = "Calibration plots for all models",
     caption = "Perfect calibration lies on the diagonal")
-
 
 # Brier Scores ------------------------------------------------------------
 
