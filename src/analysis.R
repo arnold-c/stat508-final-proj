@@ -66,7 +66,7 @@ set.seed(1234)
 credit_folds <- vfold_cv(credit_train, v = 10)
 
 # Create recipe so all folds are undergo same pre-processing
-credit_rec <- 
+credit_rec <-
   recipe(Class ~ ., data = credit_train) %>%
   step_dummy(all_nominal(), -all_outcomes()) %>%
   step_zv(all_numeric()) %>%
@@ -90,36 +90,38 @@ glm_spec <- logistic_reg() %>%
   set_engine("glm")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-# doParallel::registerDoParallel()
-# glm_rs <- credit_wf %>%
-#   add_model(glm_spec) %>%
-#   fit_resamples(
-#     resamples = credit_folds,
-#     metrics = model_mets,
-#     control = control_resamples(save_pred = TRUE)
-#   )
-#
-# saveRDS(glm_rs, here("out", "glm_rs.rds"))
+doParallel::registerDoParallel()
+glm_rs <- credit_wf %>%
+  add_model(glm_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = model_mets,
+    control = control_resamples(save_pred = TRUE)
+  )
+
+saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
 # Examine which variables are most important
 glm_spec %>%
   set_engine("glm") %>%
   fit(Class ~ .,
-      data = juice(prep(credit_rec))
+    data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
   labs(title = "Logistic Regression VIP")
 
+ggsave(plot = last_plot(), path = here("out"), filename = "glm-vip.png")
+
 # Create roc curve
-glm_roc <- glm_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+glm_roc <- glm_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Logistic Regression")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-glm_prc <- glm_rs %>% 
-  collect_predictions() %>% 
+glm_prc <- glm_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Logistic Regression")
 
@@ -135,27 +137,27 @@ lda_spec <- discrim_linear() %>%
   set_engine("MASS")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-# doParallel::registerDoParallel()
-# lda_rs <- credit_wf %>%
-#   add_model(lda_spec) %>%
-#   fit_resamples(
-#     resamples = credit_folds,
-#     metrics = model_mets,
-#     control = control_resamples(save_pred = TRUE)
-#   )
-# #
-# saveRDS(lda_rs, here("out", "lda_rs.rds"))
+doParallel::registerDoParallel()
+lda_rs <- credit_wf %>%
+  add_model(lda_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = model_mets,
+    control = control_resamples(save_pred = TRUE)
+  )
+#
+saveRDS(lda_rs, here("out", "lda_rs.rds"))
 lda_rs <- readRDS(here("out", "lda_rs.rds"))
 
 # Create roc curve
-lda_roc <- lda_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+lda_roc <- lda_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "LDA")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-lda_prc <- lda_rs %>% 
-  collect_predictions() %>% 
+lda_prc <- lda_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "LDA")
 
@@ -167,7 +169,7 @@ lda_met <- lda_rs %>%
 
 # QDA ---------------------------------------------------------------------
 
-qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>% 
+qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>%
   set_engine("klaR")
 
 
@@ -185,14 +187,14 @@ saveRDS(qda_rs, here("out", "qda_rs.rds"))
 qda_rs <- readRDS(here("out", "qda_rs.rds"))
 
 # Create roc curve
-qda_roc <- qda_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+qda_roc <- qda_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "QDA")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-qda_prc <- qda_rs %>% 
-  collect_predictions() %>% 
+qda_prc <- qda_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "QDA")
 
@@ -214,16 +216,16 @@ rf_spec <- rand_forest(
   set_mode("classification")
 
 # Tune random forest hyperparameters
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# rf_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(rf_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = 20
-# )
-# 
-# saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
+doParallel::registerDoParallel()
+set.seed(1234)
+rf_tune_rs <- tune_grid(
+  credit_wf %>% add_model(rf_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = 20
+)
+
+saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
 rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 
 rf_tune_rs %>%
@@ -231,15 +233,20 @@ rf_tune_rs %>%
   filter(.metric == "roc_auc") %>%
   select(mean, min_n, mtry) %>%
   pivot_longer(
-    cols = min_n:mtry, 
+    cols = min_n:mtry,
     values_to = "value",
-    names_to = "parameter") %>%
+    names_to = "parameter"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point(show.legend = FALSE) +
-  facet_wrap(~parameter, scales = "free_x") + 
-  labs(x = NULL, y = "AUC", 
-       title = "Random Forest - AUROC vs hyperparameter tuning values",
-       subtitle = "Initial tuning")
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(
+    x = NULL, y = "AUC",
+    title = "Random Forest - AUROC vs hyperparameter tuning values",
+    subtitle = "Initial tuning"
+  )
+
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-roc-tune.png")
 
 #' We can see that lower values of `min_n` are better, and no pattern with `mtry`.
 #' Let's create a regular grid to do a finer optimization.
@@ -253,16 +260,16 @@ rf_grid <- grid_regular(
 rf_grid
 
 # Fit Random Forest with regular tuning grid that is more focussed
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# rf_reg_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(rf_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = rf_grid
-# )
-# 
-# saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
+doParallel::registerDoParallel()
+set.seed(1234)
+rf_reg_tune_rs <- tune_grid(
+  credit_wf %>% add_model(rf_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = rf_grid
+)
+
+saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -273,9 +280,13 @@ rf_reg_tune_rs %>%
   ggplot(aes(x = mtry, y = mean, color = min_n)) +
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
-  labs(y = "AUC", 
-       title = "Random Forest - AUROC vs hyperparameter tuning values",
-       subtitle = "Regular grid tuning")
+  labs(
+    y = "AUC",
+    title = "Random Forest - AUROC vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
+
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-roc-tune.png")
 
 # Examine accuracy for hyperparameters
 rf_reg_tune_rs %>%
@@ -285,11 +296,15 @@ rf_reg_tune_rs %>%
   ggplot(aes(x = mtry, y = mean, color = min_n)) +
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
-  labs(y = "Accuracy",
-       title = "Random Forest - Accuracy vs hyperparameter tuning values",
-       subtitle = "Regular grid tuning")
+  labs(
+    y = "Accuracy",
+    title = "Random Forest - Accuracy vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
 
-#' We can see from the plot of AUC that the best combination is `min_n = 1`, and 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-acc-tune.png")
+
+#' We can see from the plot of AUC that the best combination is `min_n = 1`, and
 #' `mtry = 10`. There seems to be a decline in accuracy from `mtry = 5`, however,
 #' this is likely due to reduced sensitivity and improved specificity, which is
 #' the opposite of what we're interested in given the class imbalance.
@@ -307,12 +322,14 @@ rf_final_spec <- finalize_model(
 rf_final_spec %>%
   set_engine("ranger", importance = "permutation") %>%
   fit(Class ~ .,
-      data = juice(prep(credit_rec))
+    data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
   labs(title = "Random Forest VIP")
 
-#' Important to note that PCA is unsupervised so only looks at relevance to the 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-vip.png")
+
+#' Important to note that PCA is unsupervised so only looks at relevance to the
 #' variance observed in the predictors, not at their relevance to the outcome,
 #' so not necessary that PC1 would be the most important PC in predicting Class
 
@@ -330,14 +347,14 @@ rf_final_rs <- readRDS(here("out", "rf_final_rs.rds"))
 
 
 # Create roc curve
-rf_final_roc <- rf_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+rf_final_roc <- rf_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Random Forest")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-rf_final_prc <- rf_final_rs %>% 
-  collect_predictions() %>% 
+rf_final_prc <- rf_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Random Forest")
 
@@ -374,16 +391,16 @@ xgb_grid <- grid_latin_hypercube(
 )
 
 # Tune XGBoost hyperparameters using space filling parameter grid
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# xgb_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(xgb_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = xgb_grid
-# )
-# 
-# saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
+doParallel::registerDoParallel()
+set.seed(1234)
+xgb_tune_rs <- tune_grid(
+  credit_wf %>% add_model(xgb_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = xgb_grid
+)
+
+saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -394,13 +411,18 @@ xgb_tune_rs %>%
   pivot_longer(
     mtry:sample_size,
     names_to = "parameter",
-    values_to = "value") %>%
+    values_to = "value"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "XGBoost - AUROC vs hyperparameter tuning values",
-       subtitle = "LHS grid tuning") +
+  labs(
+    y = "AUC",
+    title = "XGBoost - AUROC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
   facet_wrap(~parameter, scales = "free_x")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-roc-tune.png")
 
 show_best(xgb_tune_rs, "roc_auc")
 
@@ -415,10 +437,12 @@ xgb_final_spec <- finalize_model(
 xgb_final_spec %>%
   set_engine("xgboost", importance = "permutation") %>%
   fit(Class ~ .,
-      data = juice(prep(credit_rec))
+    data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
   labs(title = "XGBoost VIP")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-vip.png")
 
 # Fit XGBoost model to all folds in training data (resampling), saving certain metrics
 xgb_final_rs <- credit_wf %>%
@@ -433,14 +457,14 @@ saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
 xgb_final_rs <- readRDS(here("out", "xgb_final_rs.rds"))
 
 # Create roc curve
-xgb_final_roc <- xgb_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+xgb_final_roc <- xgb_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "XGBoost")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-xgb_final_prc <- xgb_final_rs %>% 
-  collect_predictions() %>% 
+xgb_final_prc <- xgb_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "XGBoost")
 
@@ -469,16 +493,16 @@ bag_grid <- grid_latin_hypercube(
 )
 
 # Tune bagged tree hyperparameters using space filling parameter grid
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# bag_tune_rs <- tune_grid(
-#     credit_wf %>% add_model(bag_spec),
-#     resamples = credit_folds,
-#     metrics = model_mets,
-#     grid = bag_grid
-# )
-# 
-# saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
+doParallel::registerDoParallel()
+set.seed(1234)
+bag_tune_rs <- tune_grid(
+  credit_wf %>% add_model(bag_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = bag_grid
+)
+
+saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
 bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -489,13 +513,18 @@ bag_tune_rs %>%
   pivot_longer(
     cost_complexity:min_n,
     names_to = "parameter",
-    values_to = "value") %>%
+    values_to = "value"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "Bagged Tree - AUROC vs hyperparameter tuning values",
-       subtitle = "LHS grid tuning") +
+  labs(
+    y = "AUC",
+    title = "Bagged Tree - AUROC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
   facet_wrap(~parameter, scales = "free_x")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-roc-tune.png")
 
 show_best(bag_tune_rs, "roc_auc")
 
@@ -512,7 +541,7 @@ bag_final_spec <- finalize_model(
 bag_imp <- bag_final_spec %>%
   set_engine("rpart") %>%
   fit(Class ~ .,
-      data = juice(prep(credit_rec))
+    data = juice(prep(credit_rec))
   )
 
 bag_imp$fit$imp %>%
@@ -520,6 +549,8 @@ bag_imp$fit$imp %>%
   ggplot(aes(x = value, y = term)) +
   geom_point() +
   labs(title = "Bagged Tree VIP")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-vip.png")
 
 # Fit bagged tree model to all folds in training data (resampling), saving certain metrics
 bag_final_rs <- credit_wf %>%
@@ -534,14 +565,14 @@ saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
 bag_final_rs <- readRDS(here("out", "bag_final_rs.rds"))
 
 # Create roc curve
-bag_final_roc <- bag_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+bag_final_roc <- bag_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Bagged Tree")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-bag_final_prc <- bag_final_rs %>% 
-  collect_predictions() %>% 
+bag_final_prc <- bag_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "Bagged Tree")
 
@@ -566,16 +597,17 @@ glmnet_grid <- grid_latin_hypercube(
   size = 20
 )
 
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# glmnet_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(glmnet_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = glmnet_grid
-# )
-# 
-# saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
+# Tune GLMNET hyperparameters
+doParallel::registerDoParallel()
+set.seed(1234)
+glmnet_tune_rs <- tune_grid(
+  credit_wf %>% add_model(glmnet_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = glmnet_grid
+)
+
+saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
 glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -586,13 +618,18 @@ glmnet_tune_rs %>%
   pivot_longer(
     penalty:mixture,
     names_to = "parameter",
-    values_to = "value") %>%
+    values_to = "value"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "GLMNET - AUROC vs hyperparameter tuning values",
-       subtitle = "LHS grid tuning") +
+  labs(
+    y = "AUC",
+    title = "GLMNET - AUROC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
   facet_wrap(~parameter, scales = "free_x")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-roc-tune.png")
 
 best_glmnet_auc <- select_best(glmnet_tune_rs, metric = "roc_auc")
 
@@ -606,10 +643,12 @@ glmnet_final_spec <- finalize_model(
 glmnet_final_spec %>%
   set_engine("glmnet", importance = "permutation") %>%
   fit(Class ~ .,
-      data = juice(prep(credit_rec))
+    data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
   labs(title = "GLMNET VIP")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-vip.png")
 
 # Fit GLMNET model to all folds in training data (resampling), saving certain metrics
 glmnet_final_rs <- credit_wf %>%
@@ -624,14 +663,14 @@ saveRDS(glmnet_final_rs, file = here("out", "glmnet_final_rs.rds"))
 glmnet_final_rs <- readRDS(here("out", "glmnet_final_rs.rds"))
 
 # Create roc curve
-glmnet_final_roc <- glmnet_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+glmnet_final_roc <- glmnet_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "GLMNET")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-glmnet_final_prc <- glmnet_final_rs %>% 
-  collect_predictions() %>% 
+glmnet_final_prc <- glmnet_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "GLMNET")
 
@@ -642,6 +681,7 @@ glmnet_final_met <- glmnet_final_rs %>%
 
 # SVM - Radial ------------------------------------------------------------
 
+# Specify SVM-Radial model
 svmr_spec <- svm_rbf(
   cost = tune(),
   rbf_sigma = tune()
@@ -655,16 +695,17 @@ svmr_grid <- grid_latin_hypercube(
   size = 20
 )
 
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# svmr_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(svmr_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = svmr_grid
-# )
-# 
-# saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
+# Tune SVM-Radial hyperparameters
+doParallel::registerDoParallel()
+set.seed(1234)
+svmr_tune_rs <- tune_grid(
+  credit_wf %>% add_model(svmr_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = svmr_grid
+)
+
+saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
 svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -675,13 +716,18 @@ svmr_tune_rs %>%
   pivot_longer(
     cost:rbf_sigma,
     names_to = "parameter",
-    values_to = "value") %>%
+    values_to = "value"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "SVM Radial - AUROC vs hyperparameter tuning values",
-       subtitle = "LHS grid tuning") +
+  labs(
+    y = "AUC",
+    title = "SVM Radial - AUROC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
   facet_wrap(~parameter, scales = "free_x")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "svmr-roc-tune.png")
 
 best_svmr_auc <- select_best(svmr_tune_rs, metric = "roc_auc")
 
@@ -704,14 +750,14 @@ saveRDS(svmr_final_rs, file = here("out", "svmr_final_rs.rds"))
 svmr_final_rs <- readRDS(here("out", "svmr_final_rs.rds"))
 
 # Create roc curve
-svmr_final_roc <- svmr_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+svmr_final_roc <- svmr_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-R")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-svmr_final_prc <- svmr_final_rs %>% 
-  collect_predictions() %>% 
+svmr_final_prc <- svmr_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-R")
 
@@ -723,6 +769,7 @@ svmr_final_met <- svmr_final_rs %>%
 
 # SVM - Polynomial --------------------------------------------------------
 
+# Specify SVM-Polynomial model
 svmp_spec <- svm_poly(
   cost = tune(),
   degree = tune(),
@@ -738,16 +785,17 @@ svmp_grid <- grid_latin_hypercube(
   size = 20
 )
 
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# svmp_tune_rs <- tune_grid(
-#     credit_wf %>% add_model(svmp_spec),
-#     resamples = credit_folds,
-#     metrics = model_mets,
-#     grid = svmp_grid
-# )
-# 
-# saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
+# Tune SVM-P hyperparameters
+doParallel::registerDoParallel()
+set.seed(1234)
+svmp_tune_rs <- tune_grid(
+  credit_wf %>% add_model(svmp_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = svmp_grid
+)
+
+saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
 svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -758,13 +806,18 @@ svmp_tune_rs %>%
   pivot_longer(
     cost:scale_factor,
     names_to = "parameter",
-    values_to = "value") %>%
+    values_to = "value"
+  ) %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "SVM Polynomial - AUROC vs hyperparameter tuning values",
-       subtitle = "LHS grid tuning") +
+  labs(
+    y = "AUC",
+    title = "SVM Polynomial - AUROC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
   facet_wrap(~parameter, scales = "free_x")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "svmp-roc-tune.png")
 
 best_svmp_auc <- select_best(svmp_tune_rs, metric = "roc_auc")
 
@@ -787,14 +840,14 @@ saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
 svmp_final_rs <- readRDS(here("out", "svmp_final_rs.rds"))
 
 # Create roc curve
-svmp_final_roc <- svmp_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+svmp_final_roc <- svmp_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-P")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-svmp_final_prc <- svmp_final_rs %>% 
-  collect_predictions() %>% 
+svmp_final_prc <- svmp_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "SVM-P")
 
@@ -806,6 +859,7 @@ svmp_final_met <- svmp_final_rs %>%
 
 # kNN ---------------------------------------------------------------------
 
+# Specify kNN model
 knn_spec <- nearest_neighbor(
   neighbors = tune()
 ) %>%
@@ -820,16 +874,16 @@ knn_grid <- grid_regular(
 knn_grid
 
 # Tune kNN hyperparameters
-# doParallel::registerDoParallel()
-# set.seed(1234)
-# knn_tune_rs <- tune_grid(
-#   credit_wf %>% add_model(knn_spec),
-#   resamples = credit_folds,
-#   metrics = model_mets,
-#   grid = knn_grid
-# )
-# 
-# saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
+doParallel::registerDoParallel()
+set.seed(1234)
+knn_tune_rs <- tune_grid(
+  credit_wf %>% add_model(knn_spec),
+  resamples = credit_folds,
+  metrics = model_mets,
+  grid = knn_grid
+)
+
+saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
 knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -839,9 +893,13 @@ knn_tune_rs %>%
   select(mean, neighbors) %>%
   ggplot(aes(x = neighbors, y = mean)) +
   geom_point() +
-  labs(y = "AUC",
-       title = "kNN - AUROC vs hyperparameter tuning values",
-       subtitle = "Regular grid tuning")
+  labs(
+    y = "AUC",
+    title = "kNN - AUROC vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
+
+ggsave(plot = last_plot(), path = here("out"), filename = "knn-roc-tune.png")
 
 best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
 
@@ -864,14 +922,14 @@ saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
 knn_final_rs <- readRDS(here("out", "knn_final_rs.rds"))
 
 # Create roc curve
-knn_final_roc <- knn_final_rs %>% 
-  collect_predictions() %>% 
-  roc_curve(truth = Class, .pred_Fraud) %>% 
+knn_final_roc <- knn_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "kNN")
 
 # Create Precision-Recall curve (PPV-Sensitivity)
-knn_final_prc <- knn_final_rs %>% 
-  collect_predictions() %>% 
+knn_final_prc <- knn_final_rs %>%
+  collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
   mutate(model = "kNN")
 
@@ -894,7 +952,7 @@ svmp_final_met
 knn_final_met
 
 all_met <- bind_rows(
-  glm_met, lda_met, rf_final_met, xgb_final_met, bag_final_met, 
+  glm_met, lda_met, rf_final_met, xgb_final_met, bag_final_met,
   glmnet_final_met, svmr_final_met, svmp_final_met, knn_final_met
 )
 
@@ -935,30 +993,35 @@ all_met %>%
 
 # Plot ROC curves
 bind_rows(
-  glm_roc, lda_roc, qda_roc, glmnet_final_roc, 
+  glm_roc, lda_roc, qda_roc, glmnet_final_roc,
   rf_final_roc, xgb_final_roc, bag_final_roc,
   svmr_final_roc, svmp_final_roc, knn_final_roc
 ) %>%
-  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
-  geom_abline(lty = 2, col = "grey80") + 
+  geom_abline(lty = 2, col = "grey80") +
   coord_equal() +
-  labs(title = "ROC plots for all models") 
+  labs(title = "ROC plots for all models")
+
+ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-all.png")
 
 # Plot Precision-Recall curves
 bind_rows(
   glm_prc, lda_prc, qda_prc, glmnet_final_prc,
-  rf_final_prc, xgb_final_prc, bag_final_prc, 
+  rf_final_prc, xgb_final_prc, bag_final_prc,
   svmr_final_prc, svmp_final_prc, knn_final_prc
 ) %>%
-  ggplot(aes(x = recall, y = precision, col = model)) + 
+  ggplot(aes(x = recall, y = precision, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
-  geom_abline(lty = 2, col = "grey80") + 
-  coord_equal() + 
+  geom_abline(lty = 2, col = "grey80") +
+  coord_equal() +
   labs(
     x = "Recall (Sensitivity)",
     y = "Precision (Positive Predictive Value)",
-    title = "Precision (PPV) - Recall (Sens) curves for all models")
+    title = "Precision (PPV) - Recall (Sens) curves for all models"
+  )
+
+ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-all.png")
 
 # Compare predicted positive vs outcome
 bind_rows(
@@ -969,9 +1032,13 @@ bind_rows(
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
   geom_histogram(binwidth = 0.01) +
   scale_fill_ipsum() +
-  labs(title = "Predicted probability of fraud distributions by known class",
-    caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)"
+  ) +
   facet_wrap(~ Class + model, scales = "free_y", ncol = 3)
+
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
 
 
 # Calibration Plots -------------------------------------------------------
@@ -1001,9 +1068,10 @@ train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
 train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
 
 calib_df <- caret::calibration(
-  Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn, 
+  Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn,
   data = train_preds,
-  cuts = 10)$data
+  cuts = 10
+)$data
 
 ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_abline(color = "grey30", linetype = 2) +
@@ -1011,11 +1079,14 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
-    caption = "Perfect calibration lies on the diagonal")
+    caption = "Perfect calibration lies on the diagonal"
+  )
+
+ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
 
 # Brier Scores ------------------------------------------------------------
 
-#' Combination of calibration and accuracy. 
+#' Combination of calibration and accuracy.
 #' 0 is perfect correct, 1 is perfectly wrong
 
 # Logistic Regression
@@ -1057,30 +1128,30 @@ ggplot(svmr_final_cal)
 ggplot(caret::calibration(Class ~ .pred_Fraud, data = collect_predictions(knn_final_rs)))
 
 # #' GLM has higher sensitivity, so will be better at detecting fraud.
-# 
+#
 # glm_rs %>%
 #   collect_predictions() %>%
 #   group_by(id) %>%
 #   roc_curve(Class, .pred_Fraud) %>%
 #   autoplot()
-# 
+#
 # # Fit final model to all training data and evaluate on test set
 # credit_final <- credit_wf %>%
 #   add_model(glm_spec) %>%
 #   last_fit(credit_split)
-# 
+#
 # collect_metrics(credit_final)
-# 
+#
 # collect_predictions(credit_final) %>%
 #   conf_mat(Class, .pred_class)
-# 
+#
 # credit_final %>%
 #   pull(.workflow) %>%
 #   pluck(1) %>%
 #   tidy(exponentiate = FALSE) %>%
 #   arrange(estimate) %>%
 #   kable(digits = 3)
-# 
+#
 # credit_final %>%
 #   pull(.workflow) %>%
 #   pluck(1) %>%
