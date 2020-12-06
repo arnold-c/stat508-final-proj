@@ -987,7 +987,7 @@ bind_rows(
   scale_fill_ipsum() +
   labs(title = "Predicted probability of fraud distributions by known class",
     caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
-  facet_wrap(~ model + Class, scales = "free_y")
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 3)
 
 
 # Calibration Plots -------------------------------------------------------
@@ -1007,6 +1007,7 @@ train_preds <- glm_rs %>%
   )
 
 train_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
+train_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
 train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
 train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
 train_preds$bag <- collect_predictions(bag_final_rs)$.pred_Fraud
@@ -1016,8 +1017,9 @@ train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
 train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
 
 calib_df <- caret::calibration(
-  Class ~ glm + lda + rf + xgb + bag + glmnet + svmr + svmp + knn, 
-  data = train_preds)$data
+  Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn, 
+  data = train_preds,
+  cuts = 10)$data
 
 ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_abline(color = "grey30", linetype = 2) +
@@ -1025,8 +1027,23 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
-    caption = "Perfect calibration lies on the diagonal") +
-  scale_color_ipsum()
+    caption = "Perfect calibration lies on the diagonal")
+
+
+# Brier Scores ------------------------------------------------------------
+
+#' Combination of calibration and accuracy. 
+#' 0 is perfect correct, 1 is perfectly wrong
+
+# Logistic Regression
+glm_f_t <- collect_predictions(glm_rs)$.pred_None
+glm_o_t <- as.numeric(collect_predictions(glm_rs)$Class) - 1
+mean((glm_f_t - glm_o_t)^2)
+
+# Random Forest
+rf_f_t <- collect_predictions(rf_final_rs)$.pred_None
+rf_o_t <- as.numeric(collect_predictions(rf_final_rs)$Class) - 1
+mean((rf_f_t - rf_o_t)^2)
 
 # Logistic Regression
 glm_preds <- glm_rs %>%
