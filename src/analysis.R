@@ -959,8 +959,7 @@ bind_rows(
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") + 
   coord_equal() +
-  labs(title = "ROC plots for all models") +
-  scale_color_ipsum()
+  labs(title = "ROC plots for all models") 
 
 # Plot Precision-Recall curves
 bind_rows(
@@ -968,12 +967,14 @@ bind_rows(
   rf_final_prc, xgb_final_prc, bag_final_prc, 
   svmr_final_prc, svmp_final_prc, knn_final_prc
 ) %>%
-  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  ggplot(aes(x = recall, y = precision, col = model)) + 
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") + 
   coord_equal() + 
-  labs(title = "Precision (PPV) - Recall (Sens) curves for all models") +
-  scale_color_ipsum()
+  labs(
+    x = "Recall (Sensitivity)",
+    y = "Precision (Positive Predictive Value)",
+    title = "Precision (PPV) - Recall (Sens) curves for all models")
 
 # Compare predicted positive vs outcome
 bind_rows(
@@ -982,7 +983,7 @@ bind_rows(
   collect_predictions(svmp_final_rs) %>% mutate(model = "SVM-P")
 ) %>%
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 0.01) +
   scale_fill_ipsum() +
   labs(title = "Predicted probability of fraud distributions by known class",
     caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)") +
