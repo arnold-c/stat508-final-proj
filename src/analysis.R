@@ -313,6 +313,10 @@ rf_final_spec %>%
   vip(geom = "point") +
   labs(title = "Random Forest VIP")
 
+#' Important to note that PCA is unsupervised so only looks at relevance to the 
+#' variance observed in the predictors, not at their relevance to the outcome,
+#' so not necessary that PC1 would be the most important PC in predicting Class
+
 # Fit random forest model to all folds in training data (resampling), saving certain metrics
 rf_final_rs <- credit_wf %>%
   add_model(rf_final_spec) %>%
