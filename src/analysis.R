@@ -164,6 +164,47 @@ lda_met <- lda_rs %>%
   collect_metrics() %>%
   mutate(model = "LDA")
 
+
+# QDA ---------------------------------------------------------------------
+
+qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>% 
+  set_engine("klaR")
+
+
+# Fit QDA model to all folds in training data (resampling), saving certain metrics
+doParallel::registerDoParallel()
+qda_rs <- credit_wf %>%
+  add_model(qda_spec) %>%
+  fit_resamples(
+    resamples = credit_folds,
+    metrics = metric_set(
+      roc_auc, accuracy, sensitivity, specificity, j_index,
+      ppv, npv, pr_auc
+      ),
+    control = control_resamples(save_pred = TRUE)
+  )
+#
+saveRDS(qda_rs, here("out", "qda_rs.rds"))
+qda_rs <- readRDS(here("out", "qda_rs.rds"))
+
+# Create roc curve
+qda_roc <- qda_rs %>% 
+  collect_predictions() %>% 
+  roc_curve(truth = Class, .pred_Fraud) %>% 
+  mutate(model = "QDA")
+
+# Create Precision-Recall curve (PPV-Sensitivity)
+qda_prc <- qda_rs %>% 
+  collect_predictions() %>% 
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "QDA")
+
+# Create tibble of metrics
+qda_met <- qda_rs %>%
+  collect_metrics() %>%
+  mutate(model = "QDA")
+
+
 # Random Forest -----------------------------------------------------------
 
 # Specify random forest model
@@ -906,7 +947,8 @@ all_met %>%
 
 # Plot ROC curves
 bind_rows(
-  glm_roc, rf_final_roc, xgb_final_roc, bag_final_roc, glmnet_final_roc,
+  glm_roc, lda_roc, qda_roc, glmnet_final_roc, 
+  rf_final_roc, xgb_final_roc, bag_final_roc,
   svmr_final_roc, svmp_final_roc, knn_final_roc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
@@ -918,7 +960,8 @@ bind_rows(
 
 # Plot Precision-Recall curves
 bind_rows(
-  glm_prc, lda_prc, rf_final_prc, xgb_final_prc, bag_final_prc, glmnet_final_prc,
+  glm_prc, lda_prc, qda_prc, glmnet_final_prc,
+  rf_final_prc, xgb_final_prc, bag_final_prc, 
   svmr_final_prc, svmp_final_prc, knn_final_prc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
