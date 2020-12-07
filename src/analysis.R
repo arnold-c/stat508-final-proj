@@ -36,7 +36,7 @@ credit <- credit %>%
     )
   ) %>%
   mutate(across(.cols = Class, .fns = factor)) %>%
-  select(-Amount)
+  dplyr::select(-Amount)
 
 tabyl(credit$Class)
 
@@ -231,7 +231,7 @@ rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 rf_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, min_n, mtry) %>%
+  dplyr::select(mean, min_n, mtry) %>%
   pivot_longer(
     cols = min_n:mtry,
     values_to = "value",
@@ -407,7 +407,7 @@ xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 xgb_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, mtry:sample_size) %>%
+  dplyr::select(mean, mtry:sample_size) %>%
   pivot_longer(
     mtry:sample_size,
     names_to = "parameter",
@@ -509,7 +509,7 @@ bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 bag_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, cost_complexity:min_n) %>%
+  dplyr::select(mean, cost_complexity:min_n) %>%
   pivot_longer(
     cost_complexity:min_n,
     names_to = "parameter",
@@ -614,7 +614,7 @@ glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 glmnet_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, penalty, mixture) %>%
+  dplyr::select(mean, penalty, mixture) %>%
   pivot_longer(
     penalty:mixture,
     names_to = "parameter",
@@ -712,7 +712,7 @@ svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
 svmr_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, cost, rbf_sigma) %>%
+  dplyr::select(mean, cost, rbf_sigma) %>%
   pivot_longer(
     cost:rbf_sigma,
     names_to = "parameter",
@@ -802,7 +802,7 @@ svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 svmp_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, cost:scale_factor) %>%
+  dplyr::select(mean, cost:scale_factor) %>%
   pivot_longer(
     cost:scale_factor,
     names_to = "parameter",
@@ -890,7 +890,7 @@ knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 knn_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
-  select(mean, neighbors) %>%
+  dplyr::select(mean, neighbors) %>%
   ggplot(aes(x = neighbors, y = mean)) +
   geom_point() +
   labs(
@@ -1051,7 +1051,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
 # All probs tibble
 train_preds <- glm_rs %>%
   collect_predictions() %>%
-  select(Class, .pred_Fraud) %>%
+  dplyr::select(Class, .pred_Fraud) %>%
   transmute(
     Class = Class,
     glm = .pred_Fraud
