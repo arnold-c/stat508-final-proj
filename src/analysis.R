@@ -1080,13 +1080,18 @@ calib_df <- caret::calibration(
   cuts = 10
 )$data
 
-ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
+ggplot(calib_df, aes(
+  x = midpoint,
+  y = Percent,
+  color = fct_reorder2(calibModelVar, midpoint, Percent)
+)) +
   geom_abline(color = "grey30", linetype = 2) +
   geom_point(size = 1.5, alpha = 0.6) +
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
-    caption = "Perfect calibration lies on the diagonal"
+    caption = "Perfect calibration lies on the diagonal",
+    color = "Model"
   )
 
 ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
@@ -1111,15 +1116,52 @@ ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
 #' Combination of calibration and accuracy.
 #' 0 is perfect correct, 1 is perfectly wrong
 
+# Function
+brier <- function(rs){
+  preds <- collect_predictions(rs)
+  # Reorder Class factor so can use .pred_Fraud as predicted outcome
+  # Means there isn't a chance differnt models used different orders
+  preds$Class <- fct_relevel(preds$Class, "None", "Fraud")
+  
+  f_t <- preds$.pred_Fraud
+  o_t <- as.numeric(preds$Class) - 1
+  print(paste0("Brier score for: ", deparse(substitute(rs))))
+  
+  mean((f_t - o_t)^2)
+}
+
+
 # Logistic Regression
-glm_f_t <- collect_predictions(glm_rs)$.pred_None
-glm_o_t <- as.numeric(collect_predictions(glm_rs)$Class) - 1
-mean((glm_f_t - glm_o_t)^2)
+brier(glm_rs)
+
+# LDA
+brier(lda_rs)
+
+# QDA
+brier(qda_rs)
 
 # Random Forest
-rf_f_t <- collect_predictions(rf_final_rs)$.pred_None
-rf_o_t <- as.numeric(collect_predictions(rf_final_rs)$Class) - 1
-mean((rf_f_t - rf_o_t)^2)
+brier(rf_final_rs)
+
+# XGBoost
+brier(xgb_final_rs)
+
+# Bagged Trees
+brier(bag_final_rs)
+
+# GLMNET
+brier(glmnet_final_rs)
+
+# SVM-Radial
+brier(svmr_final_rs)
+
+#SVM-Polynomial
+brier(svmp_final_rs)
+
+# kNN
+brier(knn_final_rs)
+
+
 
 # Logistic Regression
 glm_preds <- glm_rs %>%
