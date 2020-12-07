@@ -2,10 +2,11 @@
 title: "STAT 508 Final Project EDA"
 author: "Callum Arnold"
 output:
-    html_notebook:
-        code_folding: hide
-        toc: yes
-        toc_float: yes
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_float: yes
+    keep_md: TRUE
 ---
 
 # Set Up
@@ -31,6 +32,18 @@ theme_set(theme_ipsum())
 ```{r}
 credit <- as_tibble(read_csv(here("data", "creditcard.csv")))
 ```
+
+```{r}
+credit <- credit %>%
+  mutate(
+    Class = case_when(
+      Class == 0 ~ "None",
+      Class == 1 ~ "Fraud"
+    )
+  ) %>%
+  mutate(across(.cols = Class, .fns = factor))
+```
+
 
 # EDA
 
@@ -60,7 +73,8 @@ for (i in 1:ncol(credit)){
 ```{r}
 for (i in names(credit[, -31])) {
   p <- ggplot(credit, aes_string(x = i)) +
-    geom_density(fill = "cornsilk")
+    geom_density(fill = "cornsilk") +
+    labs(title = paste0("Distribution of ", i))
 
   print(p)
 }
@@ -69,21 +83,27 @@ for (i in names(credit[, -31])) {
 ## Relationship with Response
 
 ```{r}
-ggplot(data = credit, aes(x = Time, fill = factor(Class))) +
+ggplot(data = credit, aes(x = Time, fill = Class)) +
   geom_histogram() +
-  facet_wrap(~Class, scales = "free")
+  facet_wrap(~Class, scales = "free") +
+  labs(title = "Relationship between time and fraud") +
+  scale_fill_ipsum()
 ```
 
 ```{r}
-ggplot(data = credit, aes(x = log(Amount), fill = factor(Class))) +
+ggplot(data = credit, aes(x = log(Amount), fill = Class)) +
   geom_histogram() +
-  facet_wrap(~Class, scales = "free")
+  facet_wrap(~Class, scales = "free") +
+  labs(title = "Relationship between (log) amount spent and fraud") +
+  scale_fill_ipsum()
 ```
 
 ```{r}
-ggplot(data = credit, aes(x = Time, y = log(Amount), alpha = 0.2, color = factor(Class))) +
+ggplot(data = credit, aes(x = Time, y = log(Amount), color = Class)) +
   geom_point() +
-  facet_wrap(~Class, scales = "free")
+  facet_wrap(~Class, scales = "free")  +
+  labs(title = "Relationship between time and (log) amount spent, by fraud class") +
+  scale_color_ipsum()
 ```
 There is a clear skew to the `Amount` variable, so it is worth applying a transformation to the data. 
 As there are values of `0`, we need to add `1` to ensure that we don't get `Inf` values produced after log transformation.
@@ -119,6 +139,7 @@ credit %>%
     ) %>%
   select(trans_time, everything()) %>%
   select(-c(Amount, Time, log_amount)) %>%
+  mutate(across(Class, .fns = as.numeric)) %>%
   cor() %>%
   corrplot(method = "square", type = "upper")
 ```
@@ -153,7 +174,7 @@ levels(prop_vars$PC)
 
 prop_vars %>%
   ggplot(aes(x = PC, y = prop_var)) +
-  geom_col() + 
+  geom_col(fill = "cornflowerblue") + 
   labs(title = "Proportion of Variance Explained by Principal Components",
        x = "Principal component number",
        y = "Proportion of variance explained")
@@ -162,7 +183,7 @@ prop_vars %>%
 ```{r}
 prop_vars %>%
   ggplot(aes(x = PC, y = cum_var)) +
-  geom_col() + 
+  geom_col(fill = "cornflowerblue") + 
   labs(title = "Cumulative Proportion of Variance Explained by Principal Components",
        x = "Principal component number",
        y = "Proportion of variance explained")
