@@ -902,6 +902,9 @@ knn_tune_rs %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "knn-roc-tune.png")
 
 best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
+#' A high k isn't an issue as it is more biased towards underfitting (i.e. 
+#' higher bias, but much lower variance) so AUC improves
+
 
 # Specify optimized svm model
 knn_final_spec <- finalize_model(
@@ -975,6 +978,10 @@ all_met %>%
 all_met %>%
   filter(.metric == "accuracy") %>%
   arrange(desc(mean))
+
+#' Important to note that the no information rate (the baseline accuracy because
+#' it is achieved by always predicting the majority class "No fraud") is 99% 
+#' ( / 227846)
 
 # Rank all models by AUPRC
 all_met %>%
@@ -1084,7 +1091,22 @@ ggplot(calib_df, aes(x = midpoint, y = Percent, color = calibModelVar)) +
 
 ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
 
+# Calibrating Models ------------------------------------------------------
+
+#' Calibrating with monotonic function e.g. Platt scaling or isotonic regression
+#' does not affect AUROC as ROC is based purely on ranking
+#' (https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
+#' be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
+
+
 # Brier Scores ------------------------------------------------------------
+
+#' As seen, there is a desire to evaluate models with severe class imbalances
+#' using metrics other than accuracy based metrics. Frank Harrell suggests 
+#' using proper scoring rules, such as the Brier score 
+#' (https://www.fharrell.com/post/class-damage/)
+#' (https://stats.stackexchange.com/questions/312780/why-is-accuracy-not-the-best-measure-for-assessing-classification-models)
+#' (https://en.wikipedia.org/wiki/Scoring_rule)
 
 #' Combination of calibration and accuracy.
 #' 0 is perfect correct, 1 is perfectly wrong
