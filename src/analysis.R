@@ -319,6 +319,7 @@ rf_final_spec <- finalize_model(
 )
 
 # Examine which variables are most important
+set.seed(1234)
 rf_final_spec %>%
   set_engine("ranger", importance = "permutation") %>%
   fit(Class ~ .,
@@ -434,6 +435,7 @@ xgb_final_spec <- finalize_model(
 )
 
 # Examine which variables are most important
+set.seed(1234)
 xgb_final_spec %>%
   set_engine("xgboost", importance = "permutation") %>%
   fit(Class ~ .,
@@ -538,6 +540,7 @@ bag_final_spec <- finalize_model(
 )
 
 # Examine which variables are most important
+set.seed(1234)
 bag_imp <- bag_final_spec %>%
   set_engine("rpart") %>%
   fit(Class ~ .,
