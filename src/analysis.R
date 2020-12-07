@@ -90,16 +90,16 @@ glm_spec <- logistic_reg() %>%
   set_engine("glm")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-doParallel::registerDoParallel()
-glm_rs <- credit_wf %>%
-  add_model(glm_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(glm_rs, here("out", "glm_rs.rds"))
+# doParallel::registerDoParallel()
+# glm_rs <- credit_wf %>%
+#   add_model(glm_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(glm_rs, here("out", "glm_rs.rds"))
 glm_rs <- readRDS(here("out", "glm_rs.rds"))
 
 # Examine which variables are most important
@@ -137,16 +137,16 @@ lda_spec <- discrim_linear() %>%
   set_engine("MASS")
 
 # Fit logistic model to all folds in training data (resampling), saving certain metrics
-doParallel::registerDoParallel()
-lda_rs <- credit_wf %>%
-  add_model(lda_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
+# doParallel::registerDoParallel()
+# lda_rs <- credit_wf %>%
+#   add_model(lda_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
 #
-saveRDS(lda_rs, here("out", "lda_rs.rds"))
+# saveRDS(lda_rs, here("out", "lda_rs.rds"))
 lda_rs <- readRDS(here("out", "lda_rs.rds"))
 
 # Create roc curve
@@ -174,16 +174,16 @@ qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>%
 
 
 # Fit QDA model to all folds in training data (resampling), saving certain metrics
-doParallel::registerDoParallel()
-qda_rs <- credit_wf %>%
-  add_model(qda_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(qda_rs, here("out", "qda_rs.rds"))
+# doParallel::registerDoParallel()
+# qda_rs <- credit_wf %>%
+#   add_model(qda_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(qda_rs, here("out", "qda_rs.rds"))
 qda_rs <- readRDS(here("out", "qda_rs.rds"))
 
 # Create roc curve
@@ -216,16 +216,16 @@ rf_spec <- rand_forest(
   set_mode("classification")
 
 # Tune random forest hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-rf_tune_rs <- tune_grid(
-  credit_wf %>% add_model(rf_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = 20
-)
-
-saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# rf_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(rf_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = 20
+# )
+# 
+# saveRDS(rf_tune_rs, file = here("out", "rf_tune_rs.rds"))
 rf_tune_rs <- readRDS(here("out", "rf_tune_rs.rds"))
 
 rf_tune_rs %>%
@@ -260,16 +260,16 @@ rf_grid <- grid_regular(
 rf_grid
 
 # Fit Random Forest with regular tuning grid that is more focussed
-doParallel::registerDoParallel()
-set.seed(1234)
-rf_reg_tune_rs <- tune_grid(
-  credit_wf %>% add_model(rf_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = rf_grid
-)
-
-saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# rf_reg_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(rf_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = rf_grid
+# )
+# 
+# saveRDS(rf_reg_tune_rs, file = here("out", "rf_reg_tune_rs.rds"))
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -334,15 +334,15 @@ ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-vip.png")
 #' so not necessary that PC1 would be the most important PC in predicting Class
 
 # Fit random forest model to all folds in training data (resampling), saving certain metrics
-rf_final_rs <- credit_wf %>%
-  add_model(rf_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(rf_final_rs, file = here("out", "rf_final_rs.rds"))
+# rf_final_rs <- credit_wf %>%
+#   add_model(rf_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(rf_final_rs, file = here("out", "rf_final_rs.rds"))
 rf_final_rs <- readRDS(here("out", "rf_final_rs.rds"))
 
 
@@ -391,16 +391,16 @@ xgb_grid <- grid_latin_hypercube(
 )
 
 # Tune XGBoost hyperparameters using space filling parameter grid
-doParallel::registerDoParallel()
-set.seed(1234)
-xgb_tune_rs <- tune_grid(
-  credit_wf %>% add_model(xgb_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = xgb_grid
-)
-
-saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# xgb_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(xgb_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = xgb_grid
+# )
+# 
+# saveRDS(xgb_tune_rs, file = here("out", "xgb_tune_rs.rds"))
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -445,15 +445,15 @@ xgb_final_spec %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-vip.png")
 
 # Fit XGBoost model to all folds in training data (resampling), saving certain metrics
-xgb_final_rs <- credit_wf %>%
-  add_model(xgb_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
+# xgb_final_rs <- credit_wf %>%
+#   add_model(xgb_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
 xgb_final_rs <- readRDS(here("out", "xgb_final_rs.rds"))
 
 # Create roc curve
@@ -493,16 +493,16 @@ bag_grid <- grid_latin_hypercube(
 )
 
 # Tune bagged tree hyperparameters using space filling parameter grid
-doParallel::registerDoParallel()
-set.seed(1234)
-bag_tune_rs <- tune_grid(
-  credit_wf %>% add_model(bag_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = bag_grid
-)
-
-saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# bag_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(bag_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = bag_grid
+# )
+# 
+# saveRDS(bag_tune_rs, file = here("out", "bag_tune_rs.rds"))
 bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -553,15 +553,15 @@ bag_imp$fit$imp %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-vip.png")
 
 # Fit bagged tree model to all folds in training data (resampling), saving certain metrics
-bag_final_rs <- credit_wf %>%
-  add_model(bag_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
+# bag_final_rs <- credit_wf %>%
+#   add_model(bag_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
 bag_final_rs <- readRDS(here("out", "bag_final_rs.rds"))
 
 # Create roc curve
@@ -598,16 +598,16 @@ glmnet_grid <- grid_latin_hypercube(
 )
 
 # Tune GLMNET hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-glmnet_tune_rs <- tune_grid(
-  credit_wf %>% add_model(glmnet_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = glmnet_grid
-)
-
-saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# glmnet_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(glmnet_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = glmnet_grid
+# )
+# 
+# saveRDS(glmnet_tune_rs, file = here("out", "glmnet_tune_rs.rds"))
 glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -651,15 +651,15 @@ glmnet_final_spec %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-vip.png")
 
 # Fit GLMNET model to all folds in training data (resampling), saving certain metrics
-glmnet_final_rs <- credit_wf %>%
-  add_model(glmnet_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(glmnet_final_rs, file = here("out", "glmnet_final_rs.rds"))
+# glmnet_final_rs <- credit_wf %>%
+#   add_model(glmnet_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(glmnet_final_rs, file = here("out", "glmnet_final_rs.rds"))
 glmnet_final_rs <- readRDS(here("out", "glmnet_final_rs.rds"))
 
 # Create roc curve
@@ -696,16 +696,16 @@ svmr_grid <- grid_latin_hypercube(
 )
 
 # Tune SVM-Radial hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-svmr_tune_rs <- tune_grid(
-  credit_wf %>% add_model(svmr_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = svmr_grid
-)
-
-saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# svmr_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(svmr_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = svmr_grid
+# )
+# 
+# saveRDS(svmr_tune_rs, file = here("out", "svmr_tune_rs.rds"))
 svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -738,15 +738,15 @@ svmr_final_spec <- finalize_model(
 )
 
 # Fit svm model to all folds in training data (resampling), saving certain metrics
-svmr_final_rs <- credit_wf %>%
-  add_model(svmr_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(svmr_final_rs, file = here("out", "svmr_final_rs.rds"))
+# svmr_final_rs <- credit_wf %>%
+#   add_model(svmr_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(svmr_final_rs, file = here("out", "svmr_final_rs.rds"))
 svmr_final_rs <- readRDS(here("out", "svmr_final_rs.rds"))
 
 # Create roc curve
@@ -786,16 +786,16 @@ svmp_grid <- grid_latin_hypercube(
 )
 
 # Tune SVM-P hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-svmp_tune_rs <- tune_grid(
-  credit_wf %>% add_model(svmp_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = svmp_grid
-)
-
-saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# svmp_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(svmp_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = svmp_grid
+# )
+# 
+# saveRDS(svmp_tune_rs, file = here("out", "svmp_tune_rs.rds"))
 svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -828,15 +828,15 @@ svmp_final_spec <- finalize_model(
 )
 
 # Fit svm model to all folds in training data (resampling), saving certain metrics
-svmp_final_rs <- credit_wf %>%
-  add_model(svmp_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
+# svmp_final_rs <- credit_wf %>%
+#   add_model(svmp_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
 svmp_final_rs <- readRDS(here("out", "svmp_final_rs.rds"))
 
 # Create roc curve
@@ -874,16 +874,16 @@ knn_grid <- grid_regular(
 knn_grid
 
 # Tune kNN hyperparameters
-doParallel::registerDoParallel()
-set.seed(1234)
-knn_tune_rs <- tune_grid(
-  credit_wf %>% add_model(knn_spec),
-  resamples = credit_folds,
-  metrics = model_mets,
-  grid = knn_grid
-)
-
-saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
+# doParallel::registerDoParallel()
+# set.seed(1234)
+# knn_tune_rs <- tune_grid(
+#   credit_wf %>% add_model(knn_spec),
+#   resamples = credit_folds,
+#   metrics = model_mets,
+#   grid = knn_grid
+# )
+# 
+# saveRDS(knn_tune_rs, file = here("out", "knn_tune_rs.rds"))
 knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 
 # Examine AUC for hyperparameters
@@ -913,15 +913,15 @@ knn_final_spec <- finalize_model(
 )
 
 # Fit kNN model to all folds in training data (resampling), saving certain metrics
-knn_final_rs <- credit_wf %>%
-  add_model(knn_final_spec) %>%
-  fit_resamples(
-    resamples = credit_folds,
-    metrics = model_mets,
-    control = control_resamples(save_pred = TRUE)
-  )
-
-saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
+# knn_final_rs <- credit_wf %>%
+#   add_model(knn_final_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
 knn_final_rs <- readRDS(here("out", "knn_final_rs.rds"))
 
 # Create roc curve
