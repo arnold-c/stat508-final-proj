@@ -1600,32 +1600,64 @@ knn_final_auprc_met <- knn_final_auprc_rs %>%
 # Evaluate Metrics ---------------------------------------------------------
 
 #+ 
-all_met <- bind_rows(
-  glm_met, lda_met, rf_final_met, xgb_final_met, bag_final_met,
-  glmnet_final_met, svmr_final_met, svmp_final_met, knn_final_met
+all_auroc_met <- bind_rows(
+  glm_met, glmnet_final_auroc_met, lda_met, qda_met,
+  rf_final_auroc_met, xgb_final_auroc_met, bag_final_auroc_met,
+  svmr_final_auroc_met, svmp_final_auroc_met, knn_final_auroc_met
 )
 
 #+ 
-# Rank all models by AUC
-all_met %>%
+all_auprc_met <- bind_rows(
+  glm_met, glmnet_final_auprc_met, lda_met, qda_met,
+  rf_final_auprc_met, xgb_final_auprc_met, bag_final_auprc_met,
+  svmr_final_auprc_met, svmp_final_auprc_met, knn_final_auprc_met
+)
+
+#+ 
+# Rank all models by AUROC - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "roc_auc") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by sensitivity
-all_met %>%
+# Rank all models by AUROC - AUROC optimized
+all_auprc_met %>%
+  filter(.metric == "roc_auc") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by sensitivity - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "sens") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by specificity
-all_met %>%
+# Rank all models by sensitivity - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "sens") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by specificity - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "spec") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by accuracy
-all_met %>%
+# Rank all models by specificity - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "spec") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by accuracy - AUROC optimized
+all_auroc_met %>%
+  filter(.metric == "accuracy") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by accuracy - AUPRC optimized
+all_auprc_met %>%
   filter(.metric == "accuracy") %>%
   arrange(desc(mean))
 
@@ -1634,45 +1666,86 @@ all_met %>%
 #' (227443 / 227846)
 
 #+ 
-# Rank all models by AUPRC
-all_met %>%
+# Rank all models by AUPRC - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by PPV
-all_met %>%
+# Rank all models by AUPRC - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "pr_auc") %>%
+  arrange(desc(mean))
+
+
+#+ 
+# Rank all models by PPV - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "ppv") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by NPV
-all_met %>%
+# Rank all models by PPV - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "ppv") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by NPV - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "npv") %>%
   arrange(desc(mean))
 
 #+ 
-# Plot ROC curves
+# Rank all models by NPV - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "npv") %>%
+  arrange(desc(mean))
+
+#+ 
+# Plot ROC curves - AUROC optimized
 bind_rows(
-  glm_roc, lda_roc, qda_roc, glmnet_final_roc,
-  rf_final_roc, xgb_final_roc, bag_final_roc,
-  svmr_final_roc, svmp_final_roc, knn_final_roc
+  glm_roc, glmnet_final_auroc_roc, lda_roc, qda_roc,
+  rf_final_auroc_roc, xgb_final_auroc_roc, bag_final_auroc_roc,
+  svmr_final_auroc_roc, svmp_final_auroc_roc, knn_final_auroc_roc
 ) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") +
   coord_equal() +
-  labs(title = "ROC plots for all models")
+  labs(
+    title = "ROC plots for all models ",
+    subtitle = "AUROC Optimized"
+    )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auroc-all.png")
 
 #+ 
-# Plot Precision-Recall curves
+# Plot ROC curves - AUPRC optimized
 bind_rows(
-  glm_prc, lda_prc, qda_prc, glmnet_final_prc,
-  rf_final_prc, xgb_final_prc, bag_final_prc,
-  svmr_final_prc, svmp_final_prc, knn_final_prc
+  glm_roc, glmnet_final_auprc_roc, lda_roc, qda_roc,
+  rf_final_auprc_roc, xgb_final_auprc_roc, bag_final_auprc_roc,
+  svmr_final_auprc_roc, svmp_final_auprc_roc, knn_final_auprc_roc
+) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") +
+  coord_equal() +
+  labs(
+    title = "ROC plots for all models",
+    subtitle = "AUPRC Optimized"
+    )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auprc-all.png")
+
+#+ 
+# Plot Precision-Recall curves - AUROC optimized
+bind_rows(
+  glm_prc, glmnet_final_auroc_prc, lda_prc, qda_prc,
+  rf_final_auroc_prc, xgb_final_auroc_prc, bag_final_auroc_prc,
+  svmr_final_auroc_prc, svmp_final_auroc_prc, knn_final_auroc_prc
 ) %>%
   ggplot(aes(x = recall, y = precision, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
@@ -1681,11 +1754,33 @@ bind_rows(
   labs(
     x = "Recall (Sensitivity)",
     y = "Precision (Positive Predictive Value)",
-    title = "Precision (PPV) - Recall (Sens) curves for all models"
+    title = "Precision (PPV) - Recall (Sens) curves for all models",
+    subtitle = "AUROC Optimized"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auroc-all.png")
+
+#+ 
+# Plot Precision-Recall curves - AUPRC optimized
+bind_rows(
+  glm_prc, glmnet_final_auprc_prc, lda_prc, qda_prc,
+  rf_final_auprc_prc, xgb_final_auprc_prc, bag_final_auprc_prc,
+  svmr_final_auprc_prc, svmp_final_auprc_prc, knn_final_auprc_prc
+) %>%
+  ggplot(aes(x = recall, y = precision, col = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") +
+  coord_equal() +
+  labs(
+    x = "Recall (Sensitivity)",
+    y = "Precision (Positive Predictive Value)",
+    title = "Precision (PPV) - Recall (Sens) curves for all models",
+    subtitle = "AUPRC Optimized"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auprc-all.png")
 
 #' ## Posterior Probability Distributions
 #+ 
