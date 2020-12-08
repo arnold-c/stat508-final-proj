@@ -310,24 +310,46 @@ glmnet_final_roc_rs <- readRDS(here("out", "glmnet_final_roc_rs.rds"))
 glmnet_final_prc_rs <- readRDS(here("out", "glmnet_final_prc_rs.rds"))
 
 #+ 
-# Create roc curve
-glmnet_final_roc <- glmnet_final_rs %>%
+# Create roc curve - AUROC
+glmnet_final_auroc_roc <- glmnet_final_roc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-glmnet_final_prc <- glmnet_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+glmnet_final_auroc_prc <- glmnet_final_roc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
 
 #+ 
-# Create tibble of metrics
-glmnet_final_met <- glmnet_final_rs %>%
+# Create tibble of metrics - AUROC
+glmnet_final_auroc_met <- glmnet_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+glmnet_final_auprc_roc <- glmnet_final_prc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "GLMNET - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+glmnet_final_auprc_prc <- glmnet_final_prc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "GLMNET - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+glmnet_final_auprc_met <- glmnet_final_prc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "GLMNET - AUPRC")
+
+
 
 #' # Discriminant Analysis
 #' ## LDA
@@ -454,7 +476,7 @@ rf_tune_rs %>%
   geom_point(show.legend = FALSE) +
   facet_wrap(~parameter, scales = "free_x") +
   labs(
-    x = NULL, y = "AUC",
+    x = NULL, y = "AUROC",
     title = "Random Forest - AUROC vs hyperparameter tuning values",
     subtitle = "Initial tuning"
   )
@@ -462,7 +484,30 @@ rf_tune_rs %>%
 #+ 
 ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-roc-tune.png")
 
-#' We can see that lower values of `min_n` are better, and no pattern with `mtry`.
+#+ 
+rf_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, min_n, mtry) %>%
+  pivot_longer(
+    cols = min_n:mtry,
+    values_to = "value",
+    names_to = "parameter"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(
+    x = NULL, y = "AUPRC",
+    title = "Random Forest - AUPRC vs hyperparameter tuning values",
+    subtitle = "Initial tuning"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-prc-tune.png")
+
+#' We can see that lower values of `min_n` are better, and no pattern with `mtry`
+#' with respect to AUROC. For AUPRC, mtry seems optimized between 10 and 25.
 #' Let's create a regular grid to do a finer optimization.
 
 #+ 
@@ -489,7 +534,7 @@ rf_grid
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 rf_reg_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -498,7 +543,7 @@ rf_reg_tune_rs %>%
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "Random Forest - AUROC vs hyperparameter tuning values",
     subtitle = "Regular grid tuning"
   )
@@ -550,64 +595,118 @@ ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-acc-tune.png"
 #' and `min_n = 1` for classification models (https://bradleyboehmke.github.io/HOML/random-forest.html)
 
 #+ 
-best_rf_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_roc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_prc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
 
 #+ 
-rf_final_spec <- finalize_model(
+rf_final_roc_spec <- finalize_model(
   rf_spec,
-  best_rf_auc
+  best_rf_roc_auc
 )
 
 #+ 
-# Examine which variables are most important
+rf_final_prc_spec <- finalize_model(
+  rf_spec,
+  best_rf_prc_auc
+)
+
+#+ 
+# Examine which variables are most important - AUROC
 set.seed(1234)
-rf_final_spec %>%
+rf_final_roc_spec %>%
   set_engine("ranger", importance = "permutation") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
-  labs(title = "Random Forest VIP")
+  labs(title = "Random Forest AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-roc-vip.png")
+
+#+ 
+# Examine which variables are most important - AUPRC
+set.seed(1234)
+rf_final_prc_spec %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "Random Forest AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-prc-vip.png")
 
 #' Important to note that PCA is unsupervised so only looks at relevance to the
 #' variance observed in the predictors, not at their relevance to the outcome,
 #' so not necessary that PC1 would be the most important PC in predicting Class
 
 #+ 
-# Fit random forest model to all folds in training data (resampling), saving certain metrics
-# rf_final_rs <- credit_wf %>%
-#   add_model(rf_final_spec) %>%
+# Fit random forest model to all folds in training data (resampling), saving certain metrics - AUROC
+# rf_final_roc_rs <- credit_wf %>%
+#   add_model(rf_final_roc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(rf_final_rs, file = here("out", "rf_final_rs.rds"))
-rf_final_rs <- readRDS(here("out", "rf_final_rs.rds"))
+# saveRDS(rf_final_roc_rs, file = here("out", "rf_final_roc_rs.rds"))
+rf_final_roc_rs <- readRDS(here("out", "rf_final_roc_rs.rds"))
 
 #+ 
-# Create roc curve
-rf_final_roc <- rf_final_rs %>%
+# Fit random forest model to all folds in training data (resampling), saving certain metrics - AUPRC
+# rf_final_prc_rs <- credit_wf %>%
+#   add_model(rf_final_prc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(rf_final_prc_rs, file = here("out", "rf_final_prc_rs.rds"))
+rf_final_prc_rs <- readRDS(here("out", "rf_final_prc_rs.rds"))
+
+#+ 
+# Create roc curve - AUROC
+rf_final_auroc_roc <- rf_final_roc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-rf_final_prc <- rf_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+rf_final_auroc_prc <- rf_final_roc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
 
 #+ 
-# Create tibble of metrics
-rf_final_met <- rf_final_rs %>%
+# Create tibble of metrics - AUROC
+rf_final_auroc_met <- rf_final_roc_rs %>%
   collect_metrics() %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+rf_final_auprc_roc <- rf_final_prc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Random Forest - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+rf_final_auprc_prc <- rf_final_prc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Random Forest - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+rf_final_auprc_met <- rf_final_prc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Random Forest - AUPRC")
 
 #' ## XGBoost
 # XGBoost -----------------------------------------------------------------
