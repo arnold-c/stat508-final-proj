@@ -1060,7 +1060,7 @@ xgb_final_auroc_spec %>%
 ```
 
 ```
-## [17:38:10] WARNING: amalgamation/../src/learner.cc:516: 
+## [18:03:40] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -1087,7 +1087,7 @@ xgb_final_auprc_spec %>%
 ```
 
 ```
-## [17:38:20] WARNING: amalgamation/../src/learner.cc:516: 
+## [18:03:49] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -2213,7 +2213,7 @@ all_auprc_met %>%
 Important to note that the no information rate (the baseline accuracy because
 it is achieved by always predicting the majority class "No fraud") is 99.82% 
 (227443 / 227846). The highest accuracy achieved is by SVM-P optimizing for
-AUPRC, and equaly $all_auprc_met %>% filter(.metric == "accuracy") %>% arrange(desc(mean)) %>% pluck("mean", 1) * 100$%
+AUPRC, and equal to 99.8920323%
 
 
 ```r

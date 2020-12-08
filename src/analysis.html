@@ -2267,7 +2267,7 @@ xgb_final_auroc_spec %&gt;%
   ) %&gt;%
   vip(geom = &quot;point&quot;) +
   labs(title = &quot;XGBoost AUROC VIP&quot;)</code></pre>
-<pre><code>## [17:38:10] WARNING: amalgamation/../src/learner.cc:516: 
+<pre><code>## [18:03:40] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -2284,7 +2284,7 @@ xgb_final_auprc_spec %&gt;%
   ) %&gt;%
   vip(geom = &quot;point&quot;) +
   labs(title = &quot;XGBoost AUPRC VIP&quot;)</code></pre>
-<pre><code>## [17:38:20] WARNING: amalgamation/../src/learner.cc:516: 
+<pre><code>## [18:03:49] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -3059,7 +3059,7 @@ all_auprc_met %&gt;%
 ##  8 accuracy binary     0.959    10 0.00279   Preprocessor1_Mo… Bagged Tree - AU…
 ##  9 accuracy binary     0.955    10 0.00255   Preprocessor1_Mo… Logistic Regress…
 ## 10 accuracy binary     0.940    10 0.00274   Preprocessor1_Mo… QDA</code></pre>
-<p>Important to note that the no information rate (the baseline accuracy because it is achieved by always predicting the majority class “No fraud”) is 99.82% (227443 / 227846). The highest accuracy achieved is by SVM-P optimizing for AUPRC, and equaly <span class="math inline">\(all_auprc_met %&gt;% filter(.metric == &quot;accuracy&quot;) %&gt;% arrange(desc(mean)) %&gt;% pluck(&quot;mean&quot;, 1) * 100\)</span>%</p>
+<p>Important to note that the no information rate (the baseline accuracy because it is achieved by always predicting the majority class “No fraud”) is 99.82% (227443 / 227846). The highest accuracy achieved is by SVM-P optimizing for AUPRC, and equal to 99.8920323%</p>
 <pre class="r"><code># Rank all models by AUPRC - AUROC optimized
 all_auroc_met %&gt;%
   filter(.metric == &quot;pr_auc&quot;) %&gt;%

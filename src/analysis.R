@@ -1680,7 +1680,7 @@ all_auprc_met %>%
 #' Important to note that the no information rate (the baseline accuracy because
 #' it is achieved by always predicting the majority class "No fraud") is 99.82% 
 #' (227443 / 227846). The highest accuracy achieved is by SVM-P optimizing for
-#' AUPRC, and equaly $all_auprc_met %>% filter(.metric == "accuracy") %>% arrange(desc(mean)) %>% pluck("mean", 1) * 100$%
+#' AUPRC, and equal to `r all_auprc_met %>% filter(.metric == "accuracy") %>% arrange(desc(mean)) %>% pluck("mean", 1) * 100`%
 
 #+ 
 # Rank all models by AUPRC - AUROC optimized
