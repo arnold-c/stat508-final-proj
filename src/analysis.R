@@ -214,7 +214,7 @@ glmnet_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
@@ -237,7 +237,7 @@ glmnet_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-auprc-tune.png")
 
 #+ 
 best_glmnet_auroc <- select_best(glmnet_tune_rs, metric = "roc_auc")
@@ -482,7 +482,7 @@ rf_tune_rs %>%
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-auroc-tune.png")
 
 #+ 
 rf_tune_rs %>%
@@ -504,7 +504,7 @@ rf_tune_rs %>%
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-auprc-tune.png")
 
 #' We can see that lower values of `min_n` are better, and no pattern with `mtry`
 #' with respect to AUROC. For AUPRC, mtry seems optimized between 10 and 25.
@@ -549,7 +549,7 @@ rf_reg_tune_rs %>%
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
@@ -567,7 +567,7 @@ rf_reg_tune_rs %>%
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-auprc-tune.png")
 
 #+ 
 # Examine accuracy for hyperparameters
@@ -772,7 +772,7 @@ xgb_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "xgb-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
@@ -795,7 +795,7 @@ xgb_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "xgb-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-auprc-tune.png")
 
 #+ 
 show_best(xgb_tune_rs, "roc_auc")
@@ -968,7 +968,7 @@ bag_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "bag-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
