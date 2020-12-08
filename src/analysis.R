@@ -752,7 +752,7 @@ xgb_grid <- grid_latin_hypercube(
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 xgb_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -765,7 +765,7 @@ xgb_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "XGBoost - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
@@ -775,63 +775,141 @@ xgb_tune_rs %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "xgb-roc-tune.png")
 
 #+ 
+# Examine AUPRC for hyperparameters
+xgb_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, mtry:sample_size) %>%
+  pivot_longer(
+    mtry:sample_size,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "XGBoost - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-prc-tune.png")
+
+#+ 
 show_best(xgb_tune_rs, "roc_auc")
+show_best(xgb_tune_rs, "pr_auc")
 
 #+ 
-best_xgb_auc <- select_best(xgb_tune_rs, "roc_auc")
+best_xgb_auroc <- select_best(xgb_tune_rs, "roc_auc")
+best_xgb_auprc <- select_best(xgb_tune_rs, "prc_auc")
 
 #+ 
-xgb_final_spec <- finalize_model(
+xgb_final_roc_spec <- finalize_model(
   xgb_spec,
-  best_xgb_auc
+  best_xgb_auroc
 )
 
 #+ 
-# Examine which variables are most important
+xgb_final_prc_spec <- finalize_model(
+  xgb_spec,
+  best_xgb_auprc
+)
+
+#+ 
+# Examine which variables are most important - AUROC
 set.seed(1234)
-xgb_final_spec %>%
+xgb_final_roc_spec %>%
   set_engine("xgboost", importance = "permutation") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
-  labs(title = "XGBoost VIP")
+  labs(title = "XGBoost AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-roc-vip.png")
 
 #+ 
-# Fit XGBoost model to all folds in training data (resampling), saving certain metrics
-# xgb_final_rs <- credit_wf %>%
-#   add_model(xgb_final_spec) %>%
+# Examine which variables are most important - AUPRC
+set.seed(1234)
+xgb_final_prc_spec %>%
+  set_engine("xgboost", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "XGBoost AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-prc-vip.png")
+
+#+ 
+# Fit XGBoost model to all folds in training data (resampling), saving certain metrics - AUROC
+# xgb_final_roc_rs <- credit_wf %>%
+#   add_model(xgb_final_roc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
-xgb_final_rs <- readRDS(here("out", "xgb_final_rs.rds"))
+# saveRDS(xgb_final_roc_rs, file = here("out", "xgb_final_roc_rs.rds"))
+xgb_final_roc_rs <- readRDS(here("out", "xgb_final_roc_rs.rds"))
 
 #+ 
-# Create roc curve
-xgb_final_roc <- xgb_final_rs %>%
+# Fit XGBoost model to all folds in training data (resampling), saving certain metrics - AUPRC
+# xgb_final_prc_rs <- credit_wf %>%
+#   add_model(xgb_final_prc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(xgb_final_prc_rs, file = here("out", "xgb_final_prc_rs.rds"))
+xgb_final_prc_rs <- readRDS(here("out", "xgb_final_prc_rs.rds"))
+
+#+ 
+# Create roc curve - AUROC
+xgb_final_auroc_roc <- xgb_final_roc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-xgb_final_prc <- xgb_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+xgb_final_auroc_prc <- xgb_final_roc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
 
 #+ 
-# Create tibble of metrics
-xgb_final_met <- xgb_final_rs %>%
+# Create tibble of metrics - AUROC
+xgb_final_auroc_met <- xgb_final_roc_rs %>%
   collect_metrics() %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+xgb_final_auprc_roc <- xgb_final_prc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "XGBoost - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+xgb_final_auprc_prc <- xgb_final_prc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "XGBoost - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+xgb_final_auprc_met <- xgb_final_prc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "XGBoost - AUPRC")
 
 #' ## Bagged Tree
 # Bagged Tree -------------------------------------------------------------
