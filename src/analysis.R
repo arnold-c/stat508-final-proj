@@ -194,7 +194,7 @@ glmnet_grid <- grid_latin_hypercube(
 glmnet_tune_rs <- readRDS(here("out", "glmnet_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 glmnet_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -217,40 +217,97 @@ glmnet_tune_rs %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-roc-tune.png")
 
 #+ 
-best_glmnet_auc <- select_best(glmnet_tune_rs, metric = "roc_auc")
+# Examine AUPRC for hyperparameters
+glmnet_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, penalty, mixture) %>%
+  pivot_longer(
+    penalty:mixture,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "GLMNET - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-# Specify optimized GLMNET model
-glmnet_final_spec <- finalize_model(
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-prc-tune.png")
+
+#+ 
+best_glmnet_auroc <- select_best(glmnet_tune_rs, metric = "roc_auc")
+best_glmnet_auprc <- select_best(glmnet_tune_rs, metric = "pr_auc")
+
+#+ 
+# Specify optimized GLMNET model - ROC
+glmnet_final_roc_spec <- finalize_model(
   glmnet_spec,
-  best_glmnet_auc
+  best_glmnet_auroc
 )
 
 #+ 
-# Examine which variables are most important
-glmnet_final_spec %>%
+# Specify optimized GLMNET model - PRC
+glmnet_final_prc_spec <- finalize_model(
+  glmnet_spec,
+  best_glmnet_auprc
+)
+
+#+ 
+# Examine which variables are most important in ROC optimized
+glmnet_final_roc_spec %>%
   set_engine("glmnet", importance = "permutation") %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
-  labs(title = "GLMNET VIP")
+  labs(title = "GLMNET AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-roc-vip.png")
 
 #+ 
-# Fit GLMNET model to all folds in training data (resampling), saving certain metrics
-# glmnet_final_rs <- credit_wf %>%
-#   add_model(glmnet_final_spec) %>%
+# Examine which variables are most important in PRC optimized
+glmnet_final_prc_spec %>%
+  set_engine("glmnet", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "GLMNET AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-prc-vip.png")
+
+#+ 
+# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - ROC
+# glmnet_final_roc_rs <- credit_wf %>%
+#   add_model(glmnet_final_roc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(glmnet_final_rs, file = here("out", "glmnet_final_rs.rds"))
-glmnet_final_rs <- readRDS(here("out", "glmnet_final_rs.rds"))
+# saveRDS(glmnet_final_roc_rs, file = here("out", "glmnet_final_roc_rs.rds"))
+glmnet_final_roc_rs <- readRDS(here("out", "glmnet_final_roc_rs.rds"))
+
+#+ 
+# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - PRC
+# glmnet_final_prc_rs <- credit_wf %>%
+#   add_model(glmnet_final_prc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(glmnet_final_prc_rs, file = here("out", "glmnet_final_prc_rs.rds"))
+glmnet_final_prc_rs <- readRDS(here("out", "glmnet_final_prc_rs.rds"))
 
 #+ 
 # Create roc curve
@@ -450,6 +507,24 @@ rf_reg_tune_rs %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-roc-tune.png")
 
 #+ 
+# Examine AUPRC for hyperparameters
+rf_reg_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  mutate(min_n = factor(min_n)) %>%
+  ggplot(aes(x = mtry, y = mean, color = min_n)) +
+  geom_line(alpha = 0.5, size = 1.5) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "Random Forest - AUPRC vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-prc-tune.png")
+
+#+ 
 # Examine accuracy for hyperparameters
 rf_reg_tune_rs %>%
   collect_metrics() %>%
@@ -467,8 +542,8 @@ rf_reg_tune_rs %>%
 #+ 
 ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-acc-tune.png")
 
-#' We can see from the plot of AUC that the best combination is `min_n = 1`, and
-#' `mtry = 10`. There seems to be a decline in accuracy from `mtry = 5`, however,
+#' We can see from the plot of AUROC and AUPRC that the best combination is `min_n = 1`, 
+#' and `mtry = 10`. There seems to be a decline in accuracy from `mtry = 5`, however,
 #' this is likely due to reduced sensitivity and improved specificity, which is
 #' the opposite of what we're interested in given the class imbalance.
 #' It is generally accepted that good starting points are `mtry = sqrt(p)` (c. 5)
@@ -1116,8 +1191,8 @@ all_met %>%
   arrange(desc(mean))
 
 #' Important to note that the no information rate (the baseline accuracy because
-#' it is achieved by always predicting the majority class "No fraud") is 99% 
-#' ( / 227846)
+#' it is achieved by always predicting the majority class "No fraud") is 99.82% 
+#' (227443 / 227846)
 
 #+ 
 # Rank all models by AUPRC
