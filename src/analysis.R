@@ -948,7 +948,7 @@ bag_grid <- grid_latin_hypercube(
 bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 bag_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -961,7 +961,7 @@ bag_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "Bagged Tree - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
@@ -971,70 +971,153 @@ bag_tune_rs %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "bag-roc-tune.png")
 
 #+ 
-show_best(bag_tune_rs, "roc_auc")
+# Examine AUPRC for hyperparameters
+bag_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, cost_complexity:min_n) %>%
+  pivot_longer(
+    cost_complexity:min_n,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "Bagged Tree - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-auprc-tune.png")
+
+#+ 
+show_best(bag_tune_rs, "pr_auc")
 
 #+ 
 # Select best parameters from tuning grid based on AUC
-best_bag_auc <- select_best(bag_tune_rs, "roc_auc")
+best_bag_auroc <- select_best(bag_tune_rs, "roc_auc")
+best_bag_auprc <- select_best(bag_tune_rs, "pr_auc")
 
 #+ 
-# Specify optimized bagged tree model
-bag_final_spec <- finalize_model(
+# Specify optimized bagged tree model - AUROC
+bag_final_auroc_spec <- finalize_model(
   bag_spec,
-  best_bag_auc
+  best_bag_auroc
 )
 
 #+ 
-# Examine which variables are most important
+# Specify optimized bagged tree model - AUPRC
+bag_final_auprc_spec <- finalize_model(
+  bag_spec,
+  best_bag_auprc
+)
+
+#+ 
+# Examine which variables are most important - AUROC
 set.seed(1234)
-bag_imp <- bag_final_spec %>%
+bag_auroc_imp <- bag_final_auroc_spec %>%
   set_engine("rpart") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   )
 
 #+ 
-bag_imp$fit$imp %>%
+bag_auroc_imp$fit$imp %>%
   mutate(term = fct_reorder(term, value)) %>%
   ggplot(aes(x = value, y = term)) +
   geom_point() +
-  labs(title = "Bagged Tree VIP")
+  labs(title = "Bagged Tree AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-auroc-vip.png")
 
 #+ 
-# Fit bagged tree model to all folds in training data (resampling), saving certain metrics
-# bag_final_rs <- credit_wf %>%
-#   add_model(bag_final_spec) %>%
+# Examine which variables are most important - AUPRC
+set.seed(1234)
+bag_auprc_imp <- bag_final_auprc_spec %>%
+  set_engine("rpart") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  )
+
+#+ 
+bag_auprc_imp$fit$imp %>%
+  mutate(term = fct_reorder(term, value)) %>%
+  ggplot(aes(x = value, y = term)) +
+  geom_point() +
+  labs(title = "Bagged Tree AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-auprc-vip.png")
+
+#+ 
+# Fit bagged tree model to all folds in training data (resampling), saving certain metrics - AUROC
+# bag_final_auroc_rs <- credit_wf %>%
+#   add_model(bag_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
-bag_final_rs <- readRDS(here("out", "bag_final_rs.rds"))
+# saveRDS(bag_final_auroc_rs, file = here("out", "bag_final_auroc_rs.rds"))
+bag_final_auroc_rs <- readRDS(here("out", "bag_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-bag_final_roc <- bag_final_rs %>%
+# Fit bagged tree model to all folds in training data (resampling), saving certain metrics - AUPRC
+# bag_final_auprc_rs <- credit_wf %>%
+#   add_model(bag_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(bag_final_auprc_rs, file = here("out", "bag_final_auprc_rs.rds"))
+bag_final_auprc_rs <- readRDS(here("out", "bag_final_auprc_rs.rds"))
+
+#+ 
+# Create roc curve - AUROC
+bag_final_auroc_roc <- bag_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-bag_final_prc <- bag_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+bag_final_auroc_prc <- bag_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
 
 #+ 
-# Create tibble of metrics
-bag_final_met <- bag_final_rs %>%
+# Create tibble of metrics - AUROC
+bag_final_auroc_met <- bag_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+bag_final_auprc_roc <- bag_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Bagged Tree - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+bag_final_auprc_prc <- bag_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Bagged Tree - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+bag_final_auprc_met <- bag_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Bagged Tree - AUPRC")
 
 #' # SVM Methods
 #' ## SVM - Radial Kernel
