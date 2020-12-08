@@ -1476,7 +1476,7 @@ knn_grid
 knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 knn_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -1484,58 +1484,116 @@ knn_tune_rs %>%
   ggplot(aes(x = neighbors, y = mean)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "kNN - AUROC vs hyperparameter tuning values",
     subtitle = "Regular grid tuning"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "knn-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "knn-auroc-tune.png")
 
 #+ 
-best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
+# Examine AUPRC for hyperparameters
+knn_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, neighbors) %>%
+  ggplot(aes(x = neighbors, y = mean)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "kNN - AUPRC vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "knn-auprc-tune.png")
+
+#+ 
+best_knn_auroc <- select_best(knn_tune_rs, metric = "roc_auc")
+best_knn_auprc <- select_best(knn_tune_rs, metric = "pr_auc")
 #' A high k isn't an issue as it is more biased towards underfitting (i.e. 
 #' higher bias, but much lower variance) so AUC improves
 
 #+ 
-# Specify optimized svm model
-knn_final_spec <- finalize_model(
+# Specify optimized svm model - AUROC
+knn_final_auroc_spec <- finalize_model(
   knn_spec,
-  best_knn_auc
+  best_knn_auroc
 )
 
 #+ 
-# Fit kNN model to all folds in training data (resampling), saving certain metrics
-# knn_final_rs <- credit_wf %>%
-#   add_model(knn_final_spec) %>%
+# Specify optimized svm model - AUPRC
+knn_final_auprc_spec <- finalize_model(
+  knn_spec,
+  best_knn_auprc
+)
+
+#+ 
+# Fit kNN model to all folds in training data (resampling), saving certain metrics - AUROC
+# knn_final_auroc_rs <- credit_wf %>%
+#   add_model(knn_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
-knn_final_rs <- readRDS(here("out", "knn_final_rs.rds"))
+# saveRDS(knn_final_auroc_rs, file = here("out", "knn_final_auroc_rs.rds"))
+knn_final_auroc_rs <- readRDS(here("out", "knn_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-knn_final_roc <- knn_final_rs %>%
+# Fit kNN model to all folds in training data (resampling), saving certain metrics - AUPRC
+# knn_final_auprc_rs <- credit_wf %>%
+#   add_model(knn_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(knn_final_auprc_rs, file = here("out", "knn_final_auprc_rs.rds"))
+knn_final_auprc_rs <- readRDS(here("out", "knn_final_auprc_rs.rds"))
+
+#+ 
+# Create roc curve - AUROC
+knn_final_auroc_roc <- knn_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-knn_final_prc <- knn_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+knn_final_auroc_prc <- knn_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
 
 #+ 
-# Create tibble of metrics
-knn_final_met <- knn_final_rs %>%
+# Create tibble of metrics - AUROC
+knn_final_auroc_met <- knn_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+knn_final_auprc_roc <- knn_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "kNN - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+knn_final_auprc_prc <- knn_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "kNN - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+knn_final_auprc_met <- knn_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "kNN - AUPRC")
 
 #' # Model Evaluation
 #' ## Metric Summaries
