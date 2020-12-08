@@ -1784,7 +1784,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auprc-all.png
 
 #' ## Posterior Probability Distributions
 #+ 
-# Compare predicted positive vs outcome
+# Compare predicted positive vs outcome - AUROC optimized
 bind_rows(
   collect_predictions(svmr_final_rs) %>% mutate(model = "SVM-R"),
   collect_predictions(glm_rs) %>% mutate(model = "Logistic Regression"),
@@ -1795,12 +1795,33 @@ bind_rows(
   scale_fill_ipsum() +
   labs(
     title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUROC Optimized",
     caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)"
   ) +
   facet_wrap(~ Class + model, scales = "free_y", ncol = 3)
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auroc-plot.png")
+
+#+
+# Compare predicted positive vs outcome - AUPRC optimized
+bind_rows(
+  collect_predictions(svmr_final_rs) %>% mutate(model = "SVM-R"),
+  collect_predictions(glm_rs) %>% mutate(model = "Logistic Regression"),
+  collect_predictions(svmp_final_rs) %>% mutate(model = "SVM-P")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUPRC Optimized",
+    caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 3)
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auprc-plot.png")
 
 #' ## Calibration Plots
 # Calibration Plots -------------------------------------------------------
@@ -1811,8 +1832,8 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
 #' of the bin, therefore average probability of the bin)
 
 #+ 
-# All probs tibble
-train_preds <- glm_rs %>%
+# All probs tibble - AUROC optimized
+train_auroc_preds <- glm_rs %>%
   collect_predictions() %>%
   dplyr::select(Class, .pred_Fraud) %>%
   transmute(
@@ -1821,25 +1842,25 @@ train_preds <- glm_rs %>%
   )
 
 #+ 
-train_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
-train_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
-train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
-train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
-train_preds$bag <- collect_predictions(bag_final_rs)$.pred_Fraud
-train_preds$glmnet <- collect_predictions(glmnet_final_rs)$.pred_Fraud
-train_preds$svmr <- collect_predictions(svmr_final_rs)$.pred_Fraud
-train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
-train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
+train_auroc_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
+train_auroc_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
+train_auroc_preds$rf <- collect_predictions(rf_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$xgb <- collect_predictions(xgb_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$bag <- collect_predictions(bag_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$glmnet <- collect_predictions(glmnet_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$svmr <- collect_predictions(svmr_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$svmp <- collect_predictions(svmp_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$knn <- collect_predictions(knn_final_auroc_rs)$.pred_Fraud
 
 #+ 
-calib_df <- caret::calibration(
+calib_auroc_df <- caret::calibration(
   Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn,
-  data = train_preds,
+  data = train_auroc_preds,
   cuts = 10
 )$data
 
 #+ 
-ggplot(calib_df, aes(
+ggplot(calib_auroc_df, aes(
   x = midpoint,
   y = Percent,
   color = fct_reorder2(calibModelVar, midpoint, Percent)
@@ -1849,12 +1870,60 @@ ggplot(calib_df, aes(
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
+    subtitle = "AUROC Optimized",
     caption = "Perfect calibration lies on the diagonal",
     color = "Model"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "calib-auroc-plot-all.png")
+
+#+ 
+# All probs tibble - AUPRC optimized
+train_auprc_preds <- glm_rs %>%
+  collect_predictions() %>%
+  dplyr::select(Class, .pred_Fraud) %>%
+  transmute(
+    Class = Class,
+    glm = .pred_Fraud
+  )
+
+#+ 
+train_auprc_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
+train_auprc_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
+train_auprc_preds$rf <- collect_predictions(rf_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$xgb <- collect_predictions(xgb_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$bag <- collect_predictions(bag_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$glmnet <- collect_predictions(glmnet_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$svmr <- collect_predictions(svmr_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$svmp <- collect_predictions(svmp_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$knn <- collect_predictions(knn_final_auprc_rs)$.pred_Fraud
+
+#+ 
+calib_auprc_df <- caret::calibration(
+  Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn,
+  data = train_auprc_preds,
+  cuts = 10
+)$data
+
+#+ 
+ggplot(calib_auprc_df, aes(
+  x = midpoint,
+  y = Percent,
+  color = fct_reorder2(calibModelVar, midpoint, Percent)
+)) +
+  geom_abline(color = "grey30", linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.6) +
+  geom_line(size = 1, alpha = 0.6) +
+  labs(
+    title = "Calibration plots for all models",
+    subtitle = "AUROC Optimized",
+    caption = "Perfect calibration lies on the diagonal",
+    color = "Model"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "calib-auprc-plot-all.png")
 
 # Calibrating Models ------------------------------------------------------
 
