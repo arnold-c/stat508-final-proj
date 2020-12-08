@@ -1319,7 +1319,7 @@ svmp_grid <- grid_latin_hypercube(
 svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 svmp_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -1332,57 +1332,114 @@ svmp_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "SVM Polynomial - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "svmp-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "svmp-auroc-tune.png")
 
 #+ 
-best_svmp_auc <- select_best(svmp_tune_rs, metric = "roc_auc")
+# Examine AUROC for hyperparameters
+svmp_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, cost:scale_factor) %>%
+  pivot_longer(
+    cost:scale_factor,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "SVM Polynomial - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-# Specify optimized svm model
-svmp_final_spec <- finalize_model(
+ggsave(plot = last_plot(), path = here("out"), filename = "svmp-auprc-tune.png")
+
+#+ 
+best_svmp_auroc <- select_best(svmp_tune_rs, metric = "roc_auc")
+best_svmp_auprc <- select_best(svmp_tune_rs, metric = "pr_auc")
+
+#+ 
+# Specify optimized svm model - AUROC
+svmp_final_auroc_spec <- finalize_model(
   svmp_spec,
-  best_svmp_auc
+  best_svmp_auroc
 )
 
 #+ 
-# Fit svm model to all folds in training data (resampling), saving certain metrics
-# svmp_final_rs <- credit_wf %>%
-#   add_model(svmp_final_spec) %>%
+# Fit svm model to all folds in training data (resampling), saving certain metrics - AUROC
+# svmp_final_auroc_rs <- credit_wf %>%
+#   add_model(svmp_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
-svmp_final_rs <- readRDS(here("out", "svmp_final_rs.rds"))
+# saveRDS(svmp_final_auroc_rs, file = here("out", "svmp_final_auroc_rs.rds"))
+svmp_final_auroc_rs <- readRDS(here("out", "svmp_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
+# Fit svm model to all folds in training data (resampling), saving certain metrics - AUPRC
+# svmp_final_auprc_rs <- credit_wf %>%
+#   add_model(svmp_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(svmp_final_auprc_rs, file = here("out", "svmp_final_auprc_rs.rds"))
+svmp_final_auprc_rs <- readRDS(here("out", "svmp_final_auprc_rs.rds"))
+
+#+ 
+# Create roc curve - AUROC
 svmp_final_roc <- svmp_final_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-svmp_final_prc <- svmp_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC
+svmp_final_auroc_prc <- svmp_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
 
 #+ 
-# Create tibble of metrics
-svmp_final_met <- svmp_final_rs %>%
+# Create tibble of metrics - AUROC
+svmp_final_auroc_met <- svmp_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
+
+#+ 
+# Create roc curve - AUPRC
+svmp_final_auprc_roc <- svmp_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-P - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC
+svmp_final_auprc_prc <- svmp_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-P - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC
+svmp_final_auprc_met <- svmp_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "SVM-P - AUPRC")
 
 #' # kNN
 # kNN ---------------------------------------------------------------------
