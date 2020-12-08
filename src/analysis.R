@@ -1992,31 +1992,61 @@ brier(lda_rs)
 brier(qda_rs)
 
 #+ 
-# Random Forest
-brier(rf_final_rs)
+# Random Forest - AUROC optimized
+brier(rf_final_auroc_rs)
 
 #+ 
-# XGBoost
-brier(xgb_final_rs)
+# Random Forest - AUPRC optimized
+brier(rf_final_auprc_rs)
 
 #+ 
-# Bagged Trees
-brier(bag_final_rs)
+# XGBoost - AUROC optimized
+brier(xgb_final_auroc_rs)
 
 #+ 
-# GLMNET
-brier(glmnet_final_rs)
+# XGBoost - AUPRC optimized
+brier(xgb_final_auprc_rs)
 
 #+ 
-# SVM-Radial
-brier(svmr_final_rs)
+# Bagged Trees - AUROC optimized
+brier(bag_final_auroc_rs)
 
 #+ 
-#SVM-Polynomial
-brier(svmp_final_rs)
+# Bagged Trees - AUPRC optimized
+brier(bag_final_auprc_rs)
 
-# kNN
-brier(knn_final_rs)
+#+ 
+# GLMNET - AUROC optimized
+brier(glmnet_final_auroc_rs)
+
+#+ 
+# GLMNET - AUPRC optimized
+brier(glmnet_final_auprc_rs)
+
+#+ 
+# SVM-Radial - AUROC optimized
+brier(svmr_final_auroc_rs)
+
+#+ 
+# SVM-Radial - AUPRC optimized
+brier(svmr_final_auprc_rs)
+
+#+ 
+# SVM-Polynomial - AUROC optimized
+brier(svmp_final_auroc_rs)
+
+#+ 
+# SVM-Polynomial - AUPRC optimized
+brier(svmp_final_auprc_rs)
+
+#+
+# kNN - AUROC optimized
+brier(knn_final_auroc_rs)
+
+#+
+# kNN - AUPRC optimized
+brier(knn_final_auprc_rs)
+
 
 #' # Test Data
 # Test Data ---------------------------------------------------------------
