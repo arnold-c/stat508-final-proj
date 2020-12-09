@@ -1936,7 +1936,7 @@ bind_rows(
   labs(
     title = "Predicted probability of fraud distributions by known class",
     subtitle = "AUPRC Optimized",
-    caption = "Logistic Regressiion best sensitivity (0.924)
+    caption = "Logistic Regression best sensitivity (0.924)
     Random Forest best AUROC (0.979)
     Random Forest best AUPRC (0.784)
     SVM-P best accuracy (0.999)
@@ -2196,47 +2196,94 @@ brier(knn_final_auprc_rs)
 #' # Test Data
 # Test Data ---------------------------------------------------------------
 
+#' RF had the highest AUPRC, indicating performance in identifying fraud cases,
+#' so we will use it as the final model for the test data.
 
+#+
+# Evaluate the ROC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  roc_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
 
-# #' GLM has higher sensitivity, so will be better at detecting fraud.
-#
-# glm_rs %>%
-#   collect_predictions() %>%
-#   group_by(id) %>%
-#   roc_curve(Class, .pred_Fraud) %>%
-#   autoplot()
-#
-# # Fit final model to all training data and evaluate on test set
-# credit_final <- credit_wf %>%
-#   add_model(glm_spec) %>%
-#   last_fit(credit_split)
-#
-# collect_metrics(credit_final)
-#
-# collect_predictions(credit_final) %>%
-#   conf_mat(Class, .pred_class)
-#
-# credit_final %>%
-#   pull(.workflow) %>%
-#   pluck(1) %>%
-#   tidy(exponentiate = FALSE) %>%
-#   arrange(estimate) %>%
-#   kable(digits = 3)
-#
-# credit_final %>%
-#   pull(.workflow) %>%
-#   pluck(1) %>%
-#   tidy(exponentiate = FALSE) %>%
-#   filter(term != "(Intercept)") %>%
-#   ggplot(aes(estimate, fct_reorder(term, estimate))) +
-#   geom_point() +
-#   geom_errorbar(aes(
-#     xmin = estimate - std.error,
-#     xmax = estimate + std.error,
-#     width = 0.2,
-#     alpha = 0.7
-#   )) +
-#   geom_vline(xintercept = 1, color = "grey50", lty = 2)
+#+
+# Evaluate the PRC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  pr_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = recall, y = precision, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "PRCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
 
+#+
+# Specify final model
+credit_final_spec <- rf_final_auprc_spec
 
-#' Seems like `V17` has a very large positive impact on being predicted Fraud.
+#+
+# Fit final model to all training data and evaluate on test set
+credit_final_rs <- credit_wf %>%
+  add_model(credit_final_spec) %>%
+  last_fit(credit_split, metrics = model_mets)
+
+#+
+collect_metrics(credit_final_rs)
+
+#+
+collect_predictions(credit_final_rs) %>%
+  conf_mat(Class, .pred_class)
+
+#+
+# Compare ROCs for training vs testing in final RF model
+credit_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Test Data") %>%
+  bind_rows(rf_final_auprc_roc) %>%
+  mutate(model = case_when(
+    model == "Random Forest - AUPRC" ~ "Training Data", 
+    TRUE ~ model
+    )) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model in Training and Test Data",
+    subtitle = "Random Forest Optimized for AUPRC",
+    color = "Data Type"
+  ) +
+  scale_color_ipsum()
+
+#+
+# Compare PRCs for training vs testing in final RF model
+credit_final_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Test Data") %>%
+  bind_rows(rf_final_auprc_prc) %>%
+  mutate(model = case_when(
+    model == "Random Forest - AUPRC" ~ "Training Data", 
+    TRUE ~ model
+  )) %>%
+  ggplot(aes(x = recall, y = precision, color = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "PRC for Final Model in Training and Test Data",
+    subtitle = "Random Forest Optimized for AUPRC",
+    x = "Recall (Sensitivity)",
+    y = "Precision (Positive Predictive Value)",
+    color = "Data Type"
+  ) +
+  scale_color_ipsum()
