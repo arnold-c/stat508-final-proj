@@ -395,7 +395,7 @@ lda_met <- lda_rs %>%
   collect_metrics() %>%
   mutate(model = "LDA")
 
-#' # QDA
+#' ## QDA
 # QDA ---------------------------------------------------------------------
 #+ 
 qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>%
@@ -435,7 +435,7 @@ qda_met <- qda_rs %>%
   collect_metrics() %>%
   mutate(model = "QDA")
 
-#+ # Tree Based Methods
+#' # Tree Based Methods
 #' ## Random Forest
 # Random Forest -----------------------------------------------------------
 
@@ -597,21 +597,21 @@ ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-acc-tune.png"
 
 #+ 
 # Save best hyperparameters based on AUROC and AUPRC
-best_rf_roc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
-best_rf_prc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_auroc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_auprc <- select_best(rf_reg_tune_rs, "pr_auc")
 
 #+ 
 # Specify optimized RF model - AUROC optimized
 rf_final_auroc_spec <- finalize_model(
   rf_spec,
-  best_rf_roc_auc
+  best_rf_auroc
 )
 
 #+ 
 # Specify optimized RF model - AUPRC optimized
 rf_final_auprc_spec <- finalize_model(
   rf_spec,
-  best_rf_prc_auc
+  best_rf_auprc
 )
 
 #+ 
