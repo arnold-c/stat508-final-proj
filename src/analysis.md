@@ -1060,7 +1060,7 @@ xgb_final_auroc_spec %>%
 ```
 
 ```
-## [18:03:40] WARNING: amalgamation/../src/learner.cc:516: 
+## [20:14:18] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -1087,7 +1087,7 @@ xgb_final_auprc_spec %>%
 ```
 
 ```
-## [18:03:49] WARNING: amalgamation/../src/learner.cc:516: 
+## [20:14:23] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -2499,7 +2499,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auprc-all.pn
 ```
 
 ```r
-# Create a list to order the PRC labels based on AUROC
+# Create a list to order the PRC labels based on AUPRC - AUROC optimized
 all_auroc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean)) %>%
@@ -2564,7 +2564,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auroc-all.png
 ```
 
 ```r
-# Create a list to order the PRC labels based on AUPRC
+# Create a list to order the PRC labels based on AUPRC - AUPRC optimized
 all_auprc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean)) %>%

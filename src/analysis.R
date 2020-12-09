@@ -1741,7 +1741,7 @@ roc_auroc_list <- c(
   "QDA"
 )
 
-#+ 
+#+ dpi=300
 # Plot ROC curves - AUROC optimized
 bind_rows(
   glm_roc, glmnet_final_auroc_roc, lda_roc, qda_roc,
@@ -1783,7 +1783,7 @@ roc_auprc_list <- c(
   "SVM-R - AUPRC"
 )
 
-#+ 
+#+ dpi=300
 # Plot ROC curves - AUPRC optimized
 bind_rows(
   glm_roc, glmnet_final_auprc_roc, lda_roc, qda_roc,
@@ -1810,7 +1810,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auprc-all.pn
 # Precision Recall Curves -------------------------------------------------
 
 #+
-# Create a list to order the PRC labels based on AUROC
+# Create a list to order the PRC labels based on AUPRC - AUROC optimized
 all_auroc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean)) %>%
@@ -1829,7 +1829,7 @@ prc_auroc_list <- c(
   "LDA"
 )
 
-#+ 
+#+ dpi=300
 # Plot Precision-Recall curves - AUROC optimized
 bind_rows(
   glm_prc, glmnet_final_auroc_prc, lda_prc, qda_prc,
@@ -1852,7 +1852,7 @@ bind_rows(
 ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auroc-all.png")
 
 #+
-# Create a list to order the PRC labels based on AUPRC
+# Create a list to order the PRC labels based on AUPRC - AUPRC optimized
 all_auprc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean)) %>%
@@ -1871,7 +1871,7 @@ prc_auprc_list <- c(
   "LDA"
 )
 
-#+ 
+#+ dpi=300
 # Plot Precision-Recall curves - AUPRC optimized
 bind_rows(
   glm_prc, glmnet_final_auprc_prc, lda_prc, qda_prc,
@@ -1895,7 +1895,8 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auprc-all.png
 
 #' ## Posterior Probability Distributions
 #' ### Best Performers by Metrics
-#+ 
+
+#+ dpi=300
 # Compare predicted positive vs outcome - AUROC optimized
 bind_rows(
   collect_predictions(svmr_final_auroc_rs) %>% mutate(model = "SVM-R"),
@@ -1921,7 +1922,7 @@ bind_rows(
 #+ 
 ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auroc-plot.png")
 
-#+
+#+ dpi=300
 # Compare predicted positive vs outcome - AUPRC optimized
 bind_rows(
   collect_predictions(svmr_final_auprc_rs) %>% mutate(model = "SVM-R"),
@@ -1949,7 +1950,7 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auprc-plot.
 
 #' ### Other models
 
-#+
+#+ dpi=300
 # Compare predicted positive vs outcome - AUROC optimized
 bind_rows(
   collect_predictions(knn_final_auroc_rs) %>% mutate(model = "kNN"),
@@ -1967,7 +1968,7 @@ bind_rows(
   facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
 
 
-#+
+#+ dpi=300
 # Compare predicted positive vs outcome - AUPRC optimized
 bind_rows(
   collect_predictions(knn_final_auprc_rs) %>% mutate(model = "kNN"),
@@ -2021,7 +2022,7 @@ calib_auroc_df <- caret::calibration(
   cuts = 10
 )$data
 
-#+ 
+#+ dpi=300
 ggplot(calib_auroc_df, aes(
   x = midpoint,
   y = Percent,
@@ -2068,7 +2069,7 @@ calib_auprc_df <- caret::calibration(
   cuts = 10
 )$data
 
-#+ 
+#+ dpi=300
 ggplot(calib_auprc_df, aes(
   x = midpoint,
   y = Percent,
