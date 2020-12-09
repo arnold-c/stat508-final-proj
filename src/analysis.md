@@ -493,7 +493,7 @@ lda_met <- lda_rs %>%
   mutate(model = "LDA")
 ```
 
-# QDA
+## QDA
 
 
 ```r
@@ -543,7 +543,7 @@ qda_met <- qda_rs %>%
   mutate(model = "QDA")
 ```
 
-
+# Tree Based Methods
 ## Random Forest
 
 
@@ -752,15 +752,15 @@ and `min_n = 1` for classification models (https://bradleyboehmke.github.io/HOML
 
 ```r
 # Save best hyperparameters based on AUROC and AUPRC
-best_rf_roc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
-best_rf_prc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_auroc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_auprc <- select_best(rf_reg_tune_rs, "pr_auc")
 ```
 
 ```r
 # Specify optimized RF model - AUROC optimized
 rf_final_auroc_spec <- finalize_model(
   rf_spec,
-  best_rf_roc_auc
+  best_rf_auroc
 )
 ```
 
@@ -768,7 +768,7 @@ rf_final_auroc_spec <- finalize_model(
 # Specify optimized RF model - AUPRC optimized
 rf_final_auprc_spec <- finalize_model(
   rf_spec,
-  best_rf_prc_auc
+  best_rf_auprc
 )
 ```
 
@@ -1060,7 +1060,7 @@ xgb_final_auroc_spec %>%
 ```
 
 ```
-## [20:14:18] WARNING: amalgamation/../src/learner.cc:516: 
+## [16:52:30] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -1087,7 +1087,7 @@ xgb_final_auprc_spec %>%
 ```
 
 ```
-## [20:14:23] WARNING: amalgamation/../src/learner.cc:516: 
+## [16:52:34] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -2676,7 +2676,7 @@ bind_rows(
   labs(
     title = "Predicted probability of fraud distributions by known class",
     subtitle = "AUPRC Optimized",
-    caption = "Logistic Regressiion best sensitivity (0.924)
+    caption = "Logistic Regression best sensitivity (0.924)
     Random Forest best AUROC (0.979)
     Random Forest best AUPRC (0.784)
     SVM-P best accuracy (0.999)
@@ -3121,54 +3121,141 @@ brier(knn_final_auprc_rs)
 
 ```r
 # Test Data ---------------------------------------------------------------
-
-
-
-# #' GLM has higher sensitivity, so will be better at detecting fraud.
-#
-# glm_rs %>%
-#   collect_predictions() %>%
-#   group_by(id) %>%
-#   roc_curve(Class, .pred_Fraud) %>%
-#   autoplot()
-#
-# # Fit final model to all training data and evaluate on test set
-# credit_final <- credit_wf %>%
-#   add_model(glm_spec) %>%
-#   last_fit(credit_split)
-#
-# collect_metrics(credit_final)
-#
-# collect_predictions(credit_final) %>%
-#   conf_mat(Class, .pred_class)
-#
-# credit_final %>%
-#   pull(.workflow) %>%
-#   pluck(1) %>%
-#   tidy(exponentiate = FALSE) %>%
-#   arrange(estimate) %>%
-#   kable(digits = 3)
-#
-# credit_final %>%
-#   pull(.workflow) %>%
-#   pluck(1) %>%
-#   tidy(exponentiate = FALSE) %>%
-#   filter(term != "(Intercept)") %>%
-#   ggplot(aes(estimate, fct_reorder(term, estimate))) +
-#   geom_point() +
-#   geom_errorbar(aes(
-#     xmin = estimate - std.error,
-#     xmax = estimate + std.error,
-#     width = 0.2,
-#     alpha = 0.7
-#   )) +
-#   geom_vline(xintercept = 1, color = "grey50", lty = 2)
 ```
 
-Seems like `V17` has a very large positive impact on being predicted Fraud.
+RF had the highest AUPRC, indicating performance in identifying fraud cases,
+so we will use it as the final model for the test data.
+
+
+```r
+# Evaluate the ROC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  roc_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-263-1.png)<!-- -->
+
+```r
+# Evaluate the PRC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  pr_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = recall, y = precision, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "PRCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-264-1.png)<!-- -->
+
+```r
+# Specify final model
+credit_final_spec <- rf_final_auprc_spec
+```
+
+```r
+# Fit final model to all training data and evaluate on test set
+credit_final_rs <- credit_wf %>%
+  add_model(credit_final_spec) %>%
+  last_fit(credit_split, metrics = model_mets)
+```
+
+```r
+collect_metrics(credit_final_rs)
+```
+
+```
+## # A tibble: 8 x 4
+##   .metric  .estimator .estimate .config             
+##   <chr>    <chr>          <dbl> <chr>               
+## 1 accuracy binary        0.973  Preprocessor1_Model1
+## 2 sens     binary        0.933  Preprocessor1_Model1
+## 3 spec     binary        0.973  Preprocessor1_Model1
+## 4 j_index  binary        0.905  Preprocessor1_Model1
+## 5 ppv      binary        0.0509 Preprocessor1_Model1
+## 6 npv      binary        1.00   Preprocessor1_Model1
+## 7 roc_auc  binary        0.984  Preprocessor1_Model1
+## 8 pr_auc   binary        0.726  Preprocessor1_Model1
+```
+
+```r
+collect_predictions(credit_final_rs) %>%
+  conf_mat(Class, .pred_class)
+```
+
+```
+##           Truth
+## Prediction Fraud  None
+##      Fraud    83  1548
+##      None      6 55324
+```
+
+```r
+# Compare ROCs for training vs testing in final RF model
+credit_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Test Data") %>%
+  bind_rows(rf_final_auprc_roc) %>%
+  mutate(model = case_when(
+    model == "Random Forest - AUPRC" ~ "Training Data", 
+    TRUE ~ model
+    )) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model in Training and Test Data",
+    subtitle = "Random Forest Optimized for AUPRC",
+    color = "Data Type"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-269-1.png)<!-- -->
+
+```r
+# Compare PRCs for training vs testing in final RF model
+credit_final_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Test Data") %>%
+  bind_rows(rf_final_auprc_prc) %>%
+  mutate(model = case_when(
+    model == "Random Forest - AUPRC" ~ "Training Data", 
+    TRUE ~ model
+  )) %>%
+  ggplot(aes(x = recall, y = precision, color = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "PRC for Final Model in Training and Test Data",
+    subtitle = "Random Forest Optimized for AUPRC",
+    x = "Recall (Sensitivity)",
+    y = "Precision (Positive Predictive Value)",
+    color = "Data Type"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-270-1.png)<!-- -->
+
 
 
 ---
-date: '2020-12-08'
+date: '2020-12-09'
 
 ---
