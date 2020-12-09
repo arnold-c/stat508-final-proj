@@ -9,8 +9,8 @@
 #'     keep_md: true
 #' ---
 
-# Set Up ------------------------------------------------------------------
 #+ # Set Up
+# Set Up ------------------------------------------------------------------
 #+ setup
 knitr::opts_chunk$set(warning=FALSE, message = FALSE)
 
@@ -141,7 +141,7 @@ glm_spec %>%
 ggsave(plot = last_plot(), path = here("out"), filename = "glm-vip.png")
 
 #+
-# Create roc curve
+# Create ROC curve
 glm_roc <- glm_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
@@ -214,7 +214,7 @@ glmnet_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
@@ -237,29 +237,30 @@ glmnet_tune_rs %>%
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-auprc-tune.png")
 
 #+ 
+# Save best hyperparameters based on AUROC and AUPRC
 best_glmnet_auroc <- select_best(glmnet_tune_rs, metric = "roc_auc")
 best_glmnet_auprc <- select_best(glmnet_tune_rs, metric = "pr_auc")
 
 #+ 
-# Specify optimized GLMNET model - ROC
-glmnet_final_roc_spec <- finalize_model(
+# Specify optimized GLMNET model - AUROC optimized
+glmnet_final_auroc_spec <- finalize_model(
   glmnet_spec,
   best_glmnet_auroc
 )
 
 #+ 
-# Specify optimized GLMNET model - PRC
-glmnet_final_prc_spec <- finalize_model(
+# Specify optimized GLMNET model - AUPRC optimized
+glmnet_final_auprc_spec <- finalize_model(
   glmnet_spec,
   best_glmnet_auprc
 )
 
 #+ 
-# Examine which variables are most important in ROC optimized
-glmnet_final_roc_spec %>%
+# Examine which variables are most important in AUROC optimized
+glmnet_final_auroc_spec %>%
   set_engine("glmnet", importance = "permutation") %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
@@ -268,11 +269,11 @@ glmnet_final_roc_spec %>%
   labs(title = "GLMNET AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-roc-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-auroc-vip.png")
 
 #+ 
-# Examine which variables are most important in PRC optimized
-glmnet_final_prc_spec %>%
+# Examine which variables are most important in AUPRC optimized
+glmnet_final_auprc_spec %>%
   set_engine("glmnet", importance = "permutation") %>%
   fit(Class ~ .,
       data = juice(prep(credit_rec))
@@ -281,53 +282,75 @@ glmnet_final_prc_spec %>%
   labs(title = "GLMNET AUPRC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-prc-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "glmnet-final-auprc-vip.png")
 
 #+ 
-# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - ROC
-# glmnet_final_roc_rs <- credit_wf %>%
-#   add_model(glmnet_final_roc_spec) %>%
+# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# glmnet_final_auroc_rs <- credit_wf %>%
+#   add_model(glmnet_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(glmnet_final_roc_rs, file = here("out", "glmnet_final_roc_rs.rds"))
-glmnet_final_roc_rs <- readRDS(here("out", "glmnet_final_roc_rs.rds"))
+# saveRDS(glmnet_final_auroc_rs, file = here("out", "glmnet_final_auroc_rs.rds"))
+glmnet_final_auroc_rs <- readRDS(here("out", "glmnet_final_auroc_rs.rds"))
 
 #+ 
-# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - PRC
-# glmnet_final_prc_rs <- credit_wf %>%
-#   add_model(glmnet_final_prc_spec) %>%
+# Fit GLMNET model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# glmnet_final_auprc_rs <- credit_wf %>%
+#   add_model(glmnet_final_auprc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(glmnet_final_prc_rs, file = here("out", "glmnet_final_prc_rs.rds"))
-glmnet_final_prc_rs <- readRDS(here("out", "glmnet_final_prc_rs.rds"))
+# saveRDS(glmnet_final_auprc_rs, file = here("out", "glmnet_final_auprc_rs.rds"))
+glmnet_final_auprc_rs <- readRDS(here("out", "glmnet_final_auprc_rs.rds"))
 
 #+ 
-# Create roc curve
-glmnet_final_roc <- glmnet_final_rs %>%
+# Create ROC curve - AUROC optimized
+glmnet_final_auroc_roc <- glmnet_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-glmnet_final_prc <- glmnet_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+glmnet_final_auroc_prc <- glmnet_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
 
 #+ 
-# Create tibble of metrics
-glmnet_final_met <- glmnet_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+glmnet_final_auroc_met <- glmnet_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "GLMNET")
+  mutate(model = "GLMNET - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+glmnet_final_auprc_roc <- glmnet_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "GLMNET - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+glmnet_final_auprc_prc <- glmnet_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "GLMNET - AUPRC")
+
+#+
+# Create tibble of metrics - AUPRC optimized
+glmnet_final_auprc_met <- glmnet_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "GLMNET - AUPRC")
+
+
 
 #' # Discriminant Analysis
 #' ## LDA
@@ -353,7 +376,7 @@ lda_spec <- discrim_linear() %>%
 lda_rs <- readRDS(here("out", "lda_rs.rds"))
 
 #+
-# Create roc curve
+# Create ROC curve
 lda_roc <- lda_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
@@ -393,7 +416,7 @@ qda_spec <- discrim_regularized(frac_common_cov = 0, frac_identity = 0) %>%
 qda_rs <- readRDS(here("out", "qda_rs.rds"))
 
 #+
-# Create roc curve
+# Create ROC curve
 qda_roc <- qda_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
@@ -454,15 +477,38 @@ rf_tune_rs %>%
   geom_point(show.legend = FALSE) +
   facet_wrap(~parameter, scales = "free_x") +
   labs(
-    x = NULL, y = "AUC",
+    x = NULL, y = "AUROC",
     title = "Random Forest - AUROC vs hyperparameter tuning values",
     subtitle = "Initial tuning"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-auroc-tune.png")
 
-#' We can see that lower values of `min_n` are better, and no pattern with `mtry`.
+#+ 
+rf_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, min_n, mtry) %>%
+  pivot_longer(
+    cols = min_n:mtry,
+    values_to = "value",
+    names_to = "parameter"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(
+    x = NULL, y = "AUPRC",
+    title = "Random Forest - AUPRC vs hyperparameter tuning values",
+    subtitle = "Initial tuning"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-initial-auprc-tune.png")
+
+#' We can see that lower values of `min_n` are better, and no pattern with `mtry`
+#' with respect to AUROC. For AUPRC, mtry seems optimized between 10 and 25.
 #' Let's create a regular grid to do a finer optimization.
 
 #+ 
@@ -489,7 +535,7 @@ rf_grid
 rf_reg_tune_rs <- readRDS(here("out", "rf_reg_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 rf_reg_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -498,13 +544,13 @@ rf_reg_tune_rs %>%
   geom_line(alpha = 0.5, size = 1.5) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "Random Forest - AUROC vs hyperparameter tuning values",
     subtitle = "Regular grid tuning"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-auroc-tune.png")
 
 #+ 
 # Examine AUPRC for hyperparameters
@@ -522,7 +568,7 @@ rf_reg_tune_rs %>%
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-prc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-auprc-tune.png")
 
 #+ 
 # Examine accuracy for hyperparameters
@@ -550,64 +596,121 @@ ggsave(plot = last_plot(), path = here("out"), filename = "rf-grid-acc-tune.png"
 #' and `min_n = 1` for classification models (https://bradleyboehmke.github.io/HOML/random-forest.html)
 
 #+ 
-best_rf_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+# Save best hyperparameters based on AUROC and AUPRC
+best_rf_roc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
+best_rf_prc_auc <- select_best(rf_reg_tune_rs, "roc_auc")
 
 #+ 
-rf_final_spec <- finalize_model(
+# Specify optimized RF model - AUROC optimized
+rf_final_auroc_spec <- finalize_model(
   rf_spec,
-  best_rf_auc
+  best_rf_roc_auc
 )
 
 #+ 
-# Examine which variables are most important
+# Specify optimized RF model - AUPRC optimized
+rf_final_auprc_spec <- finalize_model(
+  rf_spec,
+  best_rf_prc_auc
+)
+
+#+ 
+# Examine which variables are most important - AUROC optimized
 set.seed(1234)
-rf_final_spec %>%
+rf_final_auroc_spec %>%
   set_engine("ranger", importance = "permutation") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
-  labs(title = "Random Forest VIP")
+  labs(title = "Random Forest AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-auroc-vip.png")
+
+#+ 
+# Examine which variables are most important - AUPRC optimized
+set.seed(1234)
+rf_final_auprc_spec %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "Random Forest AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "rf-final-auprc-vip.png")
 
 #' Important to note that PCA is unsupervised so only looks at relevance to the
 #' variance observed in the predictors, not at their relevance to the outcome,
 #' so not necessary that PC1 would be the most important PC in predicting Class
 
 #+ 
-# Fit random forest model to all folds in training data (resampling), saving certain metrics
-# rf_final_rs <- credit_wf %>%
-#   add_model(rf_final_spec) %>%
+# Fit random forest model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# rf_final_auroc_rs <- credit_wf %>%
+#   add_model(rf_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(rf_final_rs, file = here("out", "rf_final_rs.rds"))
-rf_final_rs <- readRDS(here("out", "rf_final_rs.rds"))
+# saveRDS(rf_final_auroc_rs, file = here("out", "rf_final_auroc_rs.rds"))
+rf_final_auroc_rs <- readRDS(here("out", "rf_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-rf_final_roc <- rf_final_rs %>%
+# Fit random forest model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# rf_final_auprc_rs <- credit_wf %>%
+#   add_model(rf_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(rf_final_auprc_rs, file = here("out", "rf_final_auprc_rs.rds"))
+rf_final_auprc_rs <- readRDS(here("out", "rf_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+rf_final_auroc_roc <- rf_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-rf_final_prc <- rf_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+rf_final_auroc_prc <- rf_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
 
 #+ 
-# Create tibble of metrics
-rf_final_met <- rf_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+rf_final_auroc_met <- rf_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "Random Forest")
+  mutate(model = "Random Forest - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+rf_final_auprc_roc <- rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Random Forest - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+rf_final_auprc_prc <- rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Random Forest - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+rf_final_auprc_met <- rf_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Random Forest - AUPRC")
 
 #' ## XGBoost
 # XGBoost -----------------------------------------------------------------
@@ -653,7 +756,7 @@ xgb_grid <- grid_latin_hypercube(
 xgb_tune_rs <- readRDS(here("out", "xgb_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 xgb_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -666,73 +769,154 @@ xgb_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "XGBoost - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "xgb-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-auroc-tune.png")
+
+#+ 
+# Examine AUPRC for hyperparameters
+xgb_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, mtry:sample_size) %>%
+  pivot_longer(
+    mtry:sample_size,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "XGBoost - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-auprc-tune.png")
 
 #+ 
 show_best(xgb_tune_rs, "roc_auc")
+show_best(xgb_tune_rs, "pr_auc")
 
 #+ 
-best_xgb_auc <- select_best(xgb_tune_rs, "roc_auc")
+# Save best hyperparameters based on AUROC and AUPRC
+best_xgb_auroc <- select_best(xgb_tune_rs, "roc_auc")
+best_xgb_auprc <- select_best(xgb_tune_rs, "pr_auc")
 
 #+ 
-xgb_final_spec <- finalize_model(
+# Specify optimized XGBoost model - AUROC optimized
+xgb_final_auroc_spec <- finalize_model(
   xgb_spec,
-  best_xgb_auc
+  best_xgb_auroc
 )
 
 #+ 
-# Examine which variables are most important
+# Specify optimized XGBoost model - AUPRC optimized
+xgb_final_auprc_spec <- finalize_model(
+  xgb_spec,
+  best_xgb_auprc
+)
+
+#+ 
+# Examine which variables are most important - AUROC optimized
 set.seed(1234)
-xgb_final_spec %>%
+xgb_final_auroc_spec %>%
   set_engine("xgboost", importance = "permutation") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   ) %>%
   vip(geom = "point") +
-  labs(title = "XGBoost VIP")
+  labs(title = "XGBoost AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-auroc-vip.png")
 
 #+ 
-# Fit XGBoost model to all folds in training data (resampling), saving certain metrics
-# xgb_final_rs <- credit_wf %>%
-#   add_model(xgb_final_spec) %>%
+# Examine which variables are most important - AUPRC optimized
+set.seed(1234)
+xgb_final_auprc_spec %>%
+  set_engine("xgboost", importance = "permutation") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  ) %>%
+  vip(geom = "point") +
+  labs(title = "XGBoost AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "xgb-final-auprc-vip.png")
+
+#+ 
+# Fit XGBoost model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# xgb_final_auroc_rs <- credit_wf %>%
+#   add_model(xgb_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(xgb_final_rs, file = here("out", "xgb_final_rs.rds"))
-xgb_final_rs <- readRDS(here("out", "xgb_final_rs.rds"))
+# saveRDS(xgb_final_auroc_rs, file = here("out", "xgb_final_auroc_rs.rds"))
+xgb_final_auroc_rs <- readRDS(here("out", "xgb_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-xgb_final_roc <- xgb_final_rs %>%
+# Fit XGBoost model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# xgb_final_auprc_rs <- credit_wf %>%
+#   add_model(xgb_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(xgb_final_auprc_rs, file = here("out", "xgb_final_auprc_rs.rds"))
+xgb_final_auprc_rs <- readRDS(here("out", "xgb_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+xgb_final_auroc_roc <- xgb_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-xgb_final_prc <- xgb_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+xgb_final_auroc_prc <- xgb_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
 
 #+ 
-# Create tibble of metrics
-xgb_final_met <- xgb_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+xgb_final_auroc_met <- xgb_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "XGBoost")
+  mutate(model = "XGBoost - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+xgb_final_auprc_roc <- xgb_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "XGBoost - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+xgb_final_auprc_prc <- xgb_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "XGBoost - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+xgb_final_auprc_met <- xgb_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "XGBoost - AUPRC")
 
 #' ## Bagged Tree
 # Bagged Tree -------------------------------------------------------------
@@ -771,7 +955,7 @@ bag_grid <- grid_latin_hypercube(
 bag_tune_rs <- readRDS(here("out", "bag_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 bag_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -784,80 +968,162 @@ bag_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "Bagged Tree - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "bag-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-auroc-tune.png")
 
 #+ 
-show_best(bag_tune_rs, "roc_auc")
+# Examine AUPRC for hyperparameters
+bag_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, cost_complexity:min_n) %>%
+  pivot_longer(
+    cost_complexity:min_n,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "Bagged Tree - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-# Select best parameters from tuning grid based on AUC
-best_bag_auc <- select_best(bag_tune_rs, "roc_auc")
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-auprc-tune.png")
 
 #+ 
-# Specify optimized bagged tree model
-bag_final_spec <- finalize_model(
+# Save best hyperparameters based on AUROC and AUPRC
+best_bag_auroc <- select_best(bag_tune_rs, "roc_auc")
+best_bag_auprc <- select_best(bag_tune_rs, "pr_auc")
+
+#+ 
+# Specify optimized bagged tree model - AUROC optimized
+bag_final_auroc_spec <- finalize_model(
   bag_spec,
-  best_bag_auc
+  best_bag_auroc
 )
 
 #+ 
-# Examine which variables are most important
+# Specify optimized bagged tree model - AUPRC optimized
+bag_final_auprc_spec <- finalize_model(
+  bag_spec,
+  best_bag_auprc
+)
+
+#+ 
+# Examine which variables are most important - AUROC optimized
 set.seed(1234)
-bag_imp <- bag_final_spec %>%
+bag_auroc_imp <- bag_final_auroc_spec %>%
   set_engine("rpart") %>%
   fit(Class ~ .,
     data = juice(prep(credit_rec))
   )
 
 #+ 
-bag_imp$fit$imp %>%
+bag_auroc_imp$fit$imp %>%
   mutate(term = fct_reorder(term, value)) %>%
+  head(10) %>%
   ggplot(aes(x = value, y = term)) +
   geom_point() +
-  labs(title = "Bagged Tree VIP")
+  labs(title = "Bagged Tree AUROC VIP")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-vip.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-auroc-vip.png")
 
 #+ 
-# Fit bagged tree model to all folds in training data (resampling), saving certain metrics
-# bag_final_rs <- credit_wf %>%
-#   add_model(bag_final_spec) %>%
+# Examine which variables are most important - AUPRC optimized
+set.seed(1234)
+bag_auprc_imp <- bag_final_auprc_spec %>%
+  set_engine("rpart") %>%
+  fit(Class ~ .,
+      data = juice(prep(credit_rec))
+  )
+
+#+ 
+bag_auprc_imp$fit$imp %>%
+  mutate(term = fct_reorder(term, value)) %>%
+  head(10) %>%
+  ggplot(aes(x = value, y = term)) +
+  geom_point() +
+  labs(title = "Bagged Tree AUPRC VIP")
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "bag-final-auprc-vip.png")
+
+#+ 
+# Fit bagged tree model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# bag_final_auroc_rs <- credit_wf %>%
+#   add_model(bag_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(bag_final_rs, file = here("out", "bag_final_rs.rds"))
-bag_final_rs <- readRDS(here("out", "bag_final_rs.rds"))
+# saveRDS(bag_final_auroc_rs, file = here("out", "bag_final_auroc_rs.rds"))
+bag_final_auroc_rs <- readRDS(here("out", "bag_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-bag_final_roc <- bag_final_rs %>%
+# Fit bagged tree model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# bag_final_auprc_rs <- credit_wf %>%
+#   add_model(bag_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(bag_final_auprc_rs, file = here("out", "bag_final_auprc_rs.rds"))
+bag_final_auprc_rs <- readRDS(here("out", "bag_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+bag_final_auroc_roc <- bag_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-bag_final_prc <- bag_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+bag_final_auroc_prc <- bag_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
 
 #+ 
-# Create tibble of metrics
-bag_final_met <- bag_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+bag_final_auroc_met <- bag_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "Bagged Tree")
+  mutate(model = "Bagged Tree - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+bag_final_auprc_roc <- bag_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Bagged Tree - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+bag_final_auprc_prc <- bag_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Bagged Tree - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+bag_final_auprc_met <- bag_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "Bagged Tree - AUPRC")
 
 #' # SVM Methods
 #' ## SVM - Radial Kernel
@@ -894,7 +1160,7 @@ svmr_grid <- grid_latin_hypercube(
 svmr_tune_rs <- readRDS(here("out", "svmr_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 svmr_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -907,57 +1173,122 @@ svmr_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "SVM Radial - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "svmr-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "svmr-auroc-tune.png")
 
 #+ 
-best_svmr_auc <- select_best(svmr_tune_rs, metric = "roc_auc")
+# Examine AUPRC for hyperparameters
+svmr_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, cost, rbf_sigma) %>%
+  pivot_longer(
+    cost:rbf_sigma,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "SVM Radial - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-# Specify optimized svm model
-svmr_final_spec <- finalize_model(
+ggsave(plot = last_plot(), path = here("out"), filename = "svmr-auprc-tune.png")
+
+#+ 
+# Save best hyperparameters based on AUROC and AUPRC
+best_svmr_auroc <- select_best(svmr_tune_rs, metric = "roc_auc")
+best_svmr_auprc <- select_best(svmr_tune_rs, metric = "pr_auc")
+
+#+ 
+# Specify optimized SVM-R model - AUROC optimized
+svmr_final_auroc_spec <- finalize_model(
   svmr_spec,
-  best_svmr_auc
+  best_svmr_auroc
 )
 
 #+ 
-# Fit svm model to all folds in training data (resampling), saving certain metrics
-# svmr_final_rs <- credit_wf %>%
-#   add_model(svmr_final_spec) %>%
+# Specify optimized SVM-R model - AUPRC optimized
+svmr_final_auprc_spec <- finalize_model(
+  svmr_spec,
+  best_svmr_auprc
+)
+
+#+ 
+# Fit SVM-R model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# svmr_final_auroc_rs <- credit_wf %>%
+#   add_model(svmr_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(svmr_final_rs, file = here("out", "svmr_final_rs.rds"))
-svmr_final_rs <- readRDS(here("out", "svmr_final_rs.rds"))
+# saveRDS(svmr_final_auroc_rs, file = here("out", "svmr_final_auroc_rs.rds"))
+svmr_final_auroc_rs <- readRDS(here("out", "svmr_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-svmr_final_roc <- svmr_final_rs %>%
+# Fit SVM-R model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# svmr_final_auprc_rs <- credit_wf %>%
+#   add_model(svmr_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(svmr_final_auprc_rs, file = here("out", "svmr_final_auprc_rs.rds"))
+svmr_final_auprc_rs <- readRDS(here("out", "svmr_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+svmr_final_auroc_roc <- svmr_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-R")
+  mutate(model = "SVM-R - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-svmr_final_prc <- svmr_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+svmr_final_auroc_prc <- svmr_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-R")
+  mutate(model = "SVM-R - AUROC")
 
 #+ 
-# Create tibble of metrics
-svmr_final_met <- svmr_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+svmr_final_auroc_met <- svmr_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "SVM-R")
+  mutate(model = "SVM-R - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+svmr_final_auprc_roc <- svmr_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-R - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+svmr_final_auprc_prc <- svmr_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-R - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+svmr_final_auprc_met <- svmr_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "SVM-R - AUPRC")
 
 #' ## SVM - Polynomial Kernel
 # SVM - Polynomial --------------------------------------------------------
@@ -995,7 +1326,7 @@ svmp_grid <- grid_latin_hypercube(
 svmp_tune_rs <- readRDS(here("out", "svmp_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 svmp_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -1008,57 +1339,122 @@ svmp_tune_rs %>%
   ggplot(aes(x = value, y = mean, color = parameter)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "SVM Polynomial - AUROC vs hyperparameter tuning values",
     subtitle = "LHS grid tuning"
   ) +
   facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "svmp-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "svmp-auroc-tune.png")
 
 #+ 
-best_svmp_auc <- select_best(svmp_tune_rs, metric = "roc_auc")
+# Examine AUROC for hyperparameters
+svmp_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, cost:scale_factor) %>%
+  pivot_longer(
+    cost:scale_factor,
+    names_to = "parameter",
+    values_to = "value"
+  ) %>%
+  ggplot(aes(x = value, y = mean, color = parameter)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "SVM Polynomial - AUPRC vs hyperparameter tuning values",
+    subtitle = "LHS grid tuning"
+  ) +
+  facet_wrap(~parameter, scales = "free_x")
 
 #+ 
-# Specify optimized svm model
-svmp_final_spec <- finalize_model(
+ggsave(plot = last_plot(), path = here("out"), filename = "svmp-auprc-tune.png")
+
+#+ 
+# Save best hyperparameters based on AUROC and AUPRC
+best_svmp_auroc <- select_best(svmp_tune_rs, metric = "roc_auc")
+best_svmp_auprc <- select_best(svmp_tune_rs, metric = "pr_auc")
+
+#+ 
+# Specify optimized SVM-P model - AUROC optimized
+svmp_final_auroc_spec <- finalize_model(
   svmp_spec,
-  best_svmp_auc
+  best_svmp_auroc
 )
 
 #+ 
-# Fit svm model to all folds in training data (resampling), saving certain metrics
-# svmp_final_rs <- credit_wf %>%
-#   add_model(svmp_final_spec) %>%
+# Specify optimized SVM-P model - AUPRC optimized
+svmp_final_auprc_spec <- finalize_model(
+  svmp_spec,
+  best_svmp_auprc
+)
+
+#+ 
+# Fit SVM-P model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# svmp_final_auroc_rs <- credit_wf %>%
+#   add_model(svmp_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(svmp_final_rs, file = here("out", "svmp_final_rs.rds"))
-svmp_final_rs <- readRDS(here("out", "svmp_final_rs.rds"))
+# saveRDS(svmp_final_auroc_rs, file = here("out", "svmp_final_auroc_rs.rds"))
+svmp_final_auroc_rs <- readRDS(here("out", "svmp_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-svmp_final_roc <- svmp_final_rs %>%
+# Fit SVM-P model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# svmp_final_auprc_rs <- credit_wf %>%
+#   add_model(svmp_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(svmp_final_auprc_rs, file = here("out", "svmp_final_auprc_rs.rds"))
+svmp_final_auprc_rs <- readRDS(here("out", "svmp_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+svmp_final_auroc_roc <- svmp_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-svmp_final_prc <- svmp_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+svmp_final_auroc_prc <- svmp_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
 
 #+ 
-# Create tibble of metrics
-svmp_final_met <- svmp_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+svmp_final_auroc_met <- svmp_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "SVM-P")
+  mutate(model = "SVM-P - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+svmp_final_auprc_roc <- svmp_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-P - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+svmp_final_auprc_prc <- svmp_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "SVM-P - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+svmp_final_auprc_met <- svmp_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "SVM-P - AUPRC")
 
 #' # kNN
 # kNN ---------------------------------------------------------------------
@@ -1095,7 +1491,7 @@ knn_grid
 knn_tune_rs <- readRDS(here("out", "knn_tune_rs.rds"))
 
 #+ 
-# Examine AUC for hyperparameters
+# Examine AUROC for hyperparameters
 knn_tune_rs %>%
   collect_metrics() %>%
   filter(.metric == "roc_auc") %>%
@@ -1103,138 +1499,344 @@ knn_tune_rs %>%
   ggplot(aes(x = neighbors, y = mean)) +
   geom_point() +
   labs(
-    y = "AUC",
+    y = "AUROC",
     title = "kNN - AUROC vs hyperparameter tuning values",
     subtitle = "Regular grid tuning"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "knn-roc-tune.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "knn-auroc-tune.png")
 
 #+ 
-best_knn_auc <- select_best(knn_tune_rs, metric = "roc_auc")
+# Examine AUPRC for hyperparameters
+knn_tune_rs %>%
+  collect_metrics() %>%
+  filter(.metric == "pr_auc") %>%
+  dplyr::select(mean, neighbors) %>%
+  ggplot(aes(x = neighbors, y = mean)) +
+  geom_point() +
+  labs(
+    y = "AUPRC",
+    title = "kNN - AUPRC vs hyperparameter tuning values",
+    subtitle = "Regular grid tuning"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "knn-auprc-tune.png")
+
+#+ 
+# Save best hyperparameters based on AUROC and AUPRC
+best_knn_auroc <- select_best(knn_tune_rs, metric = "roc_auc")
+best_knn_auprc <- select_best(knn_tune_rs, metric = "pr_auc")
 #' A high k isn't an issue as it is more biased towards underfitting (i.e. 
 #' higher bias, but much lower variance) so AUC improves
 
 #+ 
-# Specify optimized svm model
-knn_final_spec <- finalize_model(
+# Specify optimized kNN model - AUROC optimized
+knn_final_auroc_spec <- finalize_model(
   knn_spec,
-  best_knn_auc
+  best_knn_auroc
 )
 
 #+ 
-# Fit kNN model to all folds in training data (resampling), saving certain metrics
-# knn_final_rs <- credit_wf %>%
-#   add_model(knn_final_spec) %>%
+# Specify optimized kNN model - AUPRC optimized
+knn_final_auprc_spec <- finalize_model(
+  knn_spec,
+  best_knn_auprc
+)
+
+#+ 
+# Fit kNN model to all folds in training data (resampling), saving certain metrics - AUROC optimized
+# knn_final_auroc_rs <- credit_wf %>%
+#   add_model(knn_final_auroc_spec) %>%
 #   fit_resamples(
 #     resamples = credit_folds,
 #     metrics = model_mets,
 #     control = control_resamples(save_pred = TRUE)
 #   )
 # 
-# saveRDS(knn_final_rs, file = here("out", "knn_final_rs.rds"))
-knn_final_rs <- readRDS(here("out", "knn_final_rs.rds"))
+# saveRDS(knn_final_auroc_rs, file = here("out", "knn_final_auroc_rs.rds"))
+knn_final_auroc_rs <- readRDS(here("out", "knn_final_auroc_rs.rds"))
 
 #+ 
-# Create roc curve
-knn_final_roc <- knn_final_rs %>%
+# Fit kNN model to all folds in training data (resampling), saving certain metrics - AUPRC optimized
+# knn_final_auprc_rs <- credit_wf %>%
+#   add_model(knn_final_auprc_spec) %>%
+#   fit_resamples(
+#     resamples = credit_folds,
+#     metrics = model_mets,
+#     control = control_resamples(save_pred = TRUE)
+#   )
+# 
+# saveRDS(knn_final_auprc_rs, file = here("out", "knn_final_auprc_rs.rds"))
+knn_final_auprc_rs <- readRDS(here("out", "knn_final_auprc_rs.rds"))
+
+#+ 
+# Create ROC curve - AUROC optimized
+knn_final_auroc_roc <- knn_final_auroc_rs %>%
   collect_predictions() %>%
   roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
 
 #+ 
-# Create Precision-Recall curve (PPV-Sensitivity)
-knn_final_prc <- knn_final_rs %>%
+# Create Precision-Recall curve (PPV-Sensitivity) - AUROC optimized
+knn_final_auroc_prc <- knn_final_auroc_rs %>%
   collect_predictions() %>%
   pr_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
 
 #+ 
-# Create tibble of metrics
-knn_final_met <- knn_final_rs %>%
+# Create tibble of metrics - AUROC optimized
+knn_final_auroc_met <- knn_final_auroc_rs %>%
   collect_metrics() %>%
-  mutate(model = "kNN")
+  mutate(model = "kNN - AUROC")
+
+#+ 
+# Create ROC curve - AUPRC optimized
+knn_final_auprc_roc <- knn_final_auprc_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "kNN - AUPRC")
+
+#+ 
+# Create Precision-Recall curve (PPV-Sensitivity) - AUPRC optimized
+knn_final_auprc_prc <- knn_final_auprc_rs %>%
+  collect_predictions() %>%
+  pr_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "kNN - AUPRC")
+
+#+ 
+# Create tibble of metrics - AUPRC optimized
+knn_final_auprc_met <- knn_final_auprc_rs %>%
+  collect_metrics() %>%
+  mutate(model = "kNN - AUPRC")
 
 #' # Model Evaluation
 #' ## Metric Summaries
 # Evaluate Metrics ---------------------------------------------------------
 
 #+ 
-all_met <- bind_rows(
-  glm_met, lda_met, rf_final_met, xgb_final_met, bag_final_met,
-  glmnet_final_met, svmr_final_met, svmp_final_met, knn_final_met
+all_auroc_met <- bind_rows(
+  glm_met, glmnet_final_auroc_met, lda_met, qda_met,
+  rf_final_auroc_met, xgb_final_auroc_met, bag_final_auroc_met,
+  svmr_final_auroc_met, svmp_final_auroc_met, knn_final_auroc_met
 )
 
 #+ 
-# Rank all models by AUC
-all_met %>%
+all_auprc_met <- bind_rows(
+  glm_met, glmnet_final_auprc_met, lda_met, qda_met,
+  rf_final_auprc_met, xgb_final_auprc_met, bag_final_auprc_met,
+  svmr_final_auprc_met, svmp_final_auprc_met, knn_final_auprc_met
+)
+
+#+ 
+# Rank all models by AUROC - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "roc_auc") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by sensitivity
-all_met %>%
+# Rank all models by AUROC - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "roc_auc") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by sensitivity - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "sens") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by specificity
-all_met %>%
+# Rank all models by sensitivity - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "sens") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by specificity - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "spec") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by accuracy
-all_met %>%
+# Rank all models by specificity - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "spec") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by accuracy - AUROC optimized
+all_auroc_met %>%
+  filter(.metric == "accuracy") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by accuracy - AUPRC optimized
+all_auprc_met %>%
   filter(.metric == "accuracy") %>%
   arrange(desc(mean))
 
 #' Important to note that the no information rate (the baseline accuracy because
 #' it is achieved by always predicting the majority class "No fraud") is 99.82% 
-#' (227443 / 227846)
+#' (227443 / 227846). The highest accuracy achieved is by SVM-P optimizing for
+#' AUPRC, and equal to `r all_auprc_met %>% filter(.metric == "accuracy") %>% arrange(desc(mean)) %>% pluck("mean", 1) * 100`%
 
 #+ 
-# Rank all models by AUPRC
-all_met %>%
+# Rank all models by AUPRC - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "pr_auc") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by PPV
-all_met %>%
+# Rank all models by AUPRC - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "pr_auc") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by PPV - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "ppv") %>%
   arrange(desc(mean))
 
 #+ 
-# Rank all models by NPV
-all_met %>%
+# Rank all models by PPV - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "ppv") %>%
+  arrange(desc(mean))
+
+#+ 
+# Rank all models by NPV - AUROC optimized
+all_auroc_met %>%
   filter(.metric == "npv") %>%
   arrange(desc(mean))
 
 #+ 
-# Plot ROC curves
+# Rank all models by NPV - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "npv") %>%
+  arrange(desc(mean))
+
+#' ## ROC Plots
+# ROC Plots ---------------------------------------------------------------
+
+#+
+# Create a list to order the ROC labels based on AUROC
+all_auroc_met %>%
+  filter(.metric == "roc_auc") %>%
+  arrange(desc(mean)) %>%
+  select(model)
+
+roc_auroc_list <- c(
+  "SVM-R - AUROC",
+  "XGBoost - AUROC",
+  "Random Forest - AUROC",
+  "GLMNET - AUROC",
+  "SVM-P - AUROC",
+  "Logistic Regression",
+  "Bagged Tree - AUROC",
+  "kNN - AUROC",
+  "LDA",
+  "QDA"
+)
+
+#+ dpi=300
+# Plot ROC curves - AUROC optimized
 bind_rows(
-  glm_roc, lda_roc, qda_roc, glmnet_final_roc,
-  rf_final_roc, xgb_final_roc, bag_final_roc,
-  svmr_final_roc, svmp_final_roc, knn_final_roc
+  glm_roc, glmnet_final_auroc_roc, lda_roc, qda_roc,
+  rf_final_auroc_roc, xgb_final_auroc_roc, bag_final_auroc_roc,
+  svmr_final_auroc_roc, svmp_final_auroc_roc, knn_final_auroc_roc
 ) %>%
+  mutate(model = factor(
+    model, 
+    levels = roc_auroc_list)) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") +
   coord_equal() +
-  labs(title = "ROC plots for all models")
+  labs(
+    title = "ROC plots for all models ",
+    subtitle = "AUROC Optimized"
+    )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auroc-all.png")
 
-#+ 
-# Plot Precision-Recall curves
+#+
+# Create a list to order the ROC labels based on AUPRC
+all_auprc_met %>%
+  filter(.metric == "roc_auc") %>%
+  arrange(desc(mean)) %>%
+  select(model)
+
+roc_auprc_list <- c(
+  "Random Forest - AUPRC",
+  "GLMNET - AUPRC",
+  "Logistic Regression",
+  "Bagged Tree - AUPRC",
+  "kNN - AUPRC",
+  "LDA",
+  "QDA",
+  "XGBoost - AUPRC",
+  "SVM-P - AUPRC",
+  "SVM-R - AUPRC"
+)
+
+#+ dpi=300
+# Plot ROC curves - AUPRC optimized
 bind_rows(
-  glm_prc, lda_prc, qda_prc, glmnet_final_prc,
-  rf_final_prc, xgb_final_prc, bag_final_prc,
-  svmr_final_prc, svmp_final_prc, knn_final_prc
+  glm_roc, glmnet_final_auprc_roc, lda_roc, qda_roc,
+  rf_final_auprc_roc, xgb_final_auprc_roc, bag_final_auprc_roc,
+  svmr_final_auprc_roc, svmp_final_auprc_roc, knn_final_auprc_roc
 ) %>%
+  mutate(model = factor(
+    model, 
+    levels = roc_auprc_list)) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") +
+  coord_equal() +
+  labs(
+    title = "ROC plots for all models",
+    subtitle = "AUPRC Optimized"
+    )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "roc-plot-auprc-all.png")
+
+#' ## Precision Recall Curves
+#+
+# Precision Recall Curves -------------------------------------------------
+
+#+
+# Create a list to order the PRC labels based on AUPRC - AUROC optimized
+all_auroc_met %>%
+  filter(.metric == "pr_auc") %>%
+  arrange(desc(mean)) %>%
+  select(model)
+
+prc_auroc_list <- c(
+  "Random Forest - AUROC",
+  "XGBoost - AUROC",
+  "kNN - AUROC",
+  "GLMNET - AUROC",
+  "SVM-P - AUROC",
+  "SVM-R - AUROC",
+  "Logistic Regression",
+  "QDA",
+  "Bagged Tree - AUROC",
+  "LDA"
+)
+
+#+ dpi=300
+# Plot Precision-Recall curves - AUROC optimized
+bind_rows(
+  glm_prc, glmnet_final_auroc_prc, lda_prc, qda_prc,
+  rf_final_auroc_prc, xgb_final_auroc_prc, bag_final_auroc_prc,
+  svmr_final_auroc_prc, svmp_final_auroc_prc, knn_final_auroc_prc
+) %>%
+  mutate(model = factor(model, levels = prc_auroc_list)) %>%
   ggplot(aes(x = recall, y = precision, col = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
   geom_abline(lty = 2, col = "grey80") +
@@ -1242,31 +1844,147 @@ bind_rows(
   labs(
     x = "Recall (Sensitivity)",
     y = "Precision (Positive Predictive Value)",
-    title = "Precision (PPV) - Recall (Sens) curves for all models"
+    title = "Precision (PPV) - Recall (Sens) curves for all models",
+    subtitle = "AUROC Optimized"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auroc-all.png")
+
+#+
+# Create a list to order the PRC labels based on AUPRC - AUPRC optimized
+all_auprc_met %>%
+  filter(.metric == "pr_auc") %>%
+  arrange(desc(mean)) %>%
+  select(model)
+
+prc_auprc_list <- c(
+  "Random Forest - AUPRC",
+  "XGBoost - AUPRC",
+  "SVM-P - AUPRC",
+  "SVM-R - AUPRC",
+  "kNN - AUPRC",
+  "GLMNET - AUPRC",
+  "Logistic Regression",
+  "QDA",
+  "Bagged Tree - AUPRC",
+  "LDA"
+)
+
+#+ dpi=300
+# Plot Precision-Recall curves - AUPRC optimized
+bind_rows(
+  glm_prc, glmnet_final_auprc_prc, lda_prc, qda_prc,
+  rf_final_auprc_prc, xgb_final_auprc_prc, bag_final_auprc_prc,
+  svmr_final_auprc_prc, svmp_final_auprc_prc, knn_final_auprc_prc
+) %>%
+  mutate(model = factor(model, levels = prc_auprc_list)) %>%
+  ggplot(aes(x = recall, y = precision, col = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 2, col = "grey80") +
+  coord_equal() +
+  labs(
+    x = "Recall (Sensitivity)",
+    y = "Precision (Positive Predictive Value)",
+    title = "Precision (PPV) - Recall (Sens) curves for all models",
+    subtitle = "AUPRC Optimized"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "pr-plot-auprc-all.png")
 
 #' ## Posterior Probability Distributions
-#+ 
-# Compare predicted positive vs outcome
+#' ### Best Performers by Metrics
+
+#+ dpi=300
+# Compare predicted positive vs outcome - AUROC optimized
 bind_rows(
-  collect_predictions(svmr_final_rs) %>% mutate(model = "SVM-R"),
+  collect_predictions(svmr_final_auroc_rs) %>% mutate(model = "SVM-R"),
   collect_predictions(glm_rs) %>% mutate(model = "Logistic Regression"),
-  collect_predictions(svmp_final_rs) %>% mutate(model = "SVM-P")
+  collect_predictions(svmp_final_auroc_rs) %>% mutate(model = "SVM-P"),
+  collect_predictions(rf_final_auroc_rs) %>% mutate(model = "Random Forest")
 ) %>%
   ggplot(aes(x = .pred_Fraud, fill = Class)) +
   geom_histogram(binwidth = 0.01) +
   scale_fill_ipsum() +
   labs(
     title = "Predicted probability of fraud distributions by known class",
-    caption = "SVM-P best specificity (0.999) \n SVM-R best AUC (0.983) \n SVM-P best accuracy (0.998) \n Logistic Regression best sensitivity (0.924)"
+    subtitle = "AUROC Optimized",
+    caption = "Logistic Regression best sensitivity (0.924)
+    Random Forest best AUPRC (0.783)
+    SVM-P best specificity (0.999)
+    SVM-P best accuracy (0.998) 
+    SVM-P best PPV (0.525)
+    SVM-R best AUROC (0.983)"
   ) +
-  facet_wrap(~ Class + model, scales = "free_y", ncol = 3)
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auroc-plot.png")
+
+#+ dpi=300
+# Compare predicted positive vs outcome - AUPRC optimized
+bind_rows(
+  collect_predictions(svmr_final_auprc_rs) %>% mutate(model = "SVM-R"),
+  collect_predictions(glm_rs) %>% mutate(model = "Logistic Regression"),
+  collect_predictions(svmp_final_auprc_rs) %>% mutate(model = "SVM-P"),
+  collect_predictions(rf_final_auprc_rs) %>% mutate(model = "Random Forest")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUPRC Optimized",
+    caption = "Logistic Regressiion best sensitivity (0.924)
+    Random Forest best AUROC (0.979)
+    Random Forest best AUPRC (0.784)
+    SVM-P best accuracy (0.999)
+    SVM-P best PPV (0.868)
+    SVM-R best specificity (1.00)"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auprc-plot.png")
+
+#' ### Other models
+
+#+ dpi=300
+# Compare predicted positive vs outcome - AUROC optimized
+bind_rows(
+  collect_predictions(knn_final_auroc_rs) %>% mutate(model = "kNN"),
+  collect_predictions(lda_rs) %>% mutate(model = "LDA"),
+  collect_predictions(glmnet_final_auroc_rs) %>% mutate(model = "GLMNET"),
+  collect_predictions(qda_rs) %>% mutate(model = "QDA")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUROC Optimized"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
+
+
+#+ dpi=300
+# Compare predicted positive vs outcome - AUPRC optimized
+bind_rows(
+  collect_predictions(knn_final_auprc_rs) %>% mutate(model = "kNN"),
+  collect_predictions(lda_rs) %>% mutate(model = "LDA"),
+  collect_predictions(glmnet_final_auprc_rs) %>% mutate(model = "GLMNET"),
+  collect_predictions(qda_rs) %>% mutate(model = "QDA")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUPRC Optimized"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
+
 
 #' ## Calibration Plots
 # Calibration Plots -------------------------------------------------------
@@ -1277,8 +1995,8 @@ ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-plot.png")
 #' of the bin, therefore average probability of the bin)
 
 #+ 
-# All probs tibble
-train_preds <- glm_rs %>%
+# All probs tibble - AUROC optimized
+train_auroc_preds <- glm_rs %>%
   collect_predictions() %>%
   dplyr::select(Class, .pred_Fraud) %>%
   transmute(
@@ -1287,25 +2005,25 @@ train_preds <- glm_rs %>%
   )
 
 #+ 
-train_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
-train_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
-train_preds$rf <- collect_predictions(rf_final_rs)$.pred_Fraud
-train_preds$xgb <- collect_predictions(xgb_final_rs)$.pred_Fraud
-train_preds$bag <- collect_predictions(bag_final_rs)$.pred_Fraud
-train_preds$glmnet <- collect_predictions(glmnet_final_rs)$.pred_Fraud
-train_preds$svmr <- collect_predictions(svmr_final_rs)$.pred_Fraud
-train_preds$svmp <- collect_predictions(svmp_final_rs)$.pred_Fraud
-train_preds$knn <- collect_predictions(knn_final_rs)$.pred_Fraud
+train_auroc_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
+train_auroc_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
+train_auroc_preds$rf <- collect_predictions(rf_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$xgb <- collect_predictions(xgb_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$bag <- collect_predictions(bag_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$glmnet <- collect_predictions(glmnet_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$svmr <- collect_predictions(svmr_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$svmp <- collect_predictions(svmp_final_auroc_rs)$.pred_Fraud
+train_auroc_preds$knn <- collect_predictions(knn_final_auroc_rs)$.pred_Fraud
 
 #+ 
-calib_df <- caret::calibration(
+calib_auroc_df <- caret::calibration(
   Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn,
-  data = train_preds,
+  data = train_auroc_preds,
   cuts = 10
 )$data
 
-#+ 
-ggplot(calib_df, aes(
+#+ dpi=300
+ggplot(calib_auroc_df, aes(
   x = midpoint,
   y = Percent,
   color = fct_reorder2(calibModelVar, midpoint, Percent)
@@ -1315,12 +2033,60 @@ ggplot(calib_df, aes(
   geom_line(size = 1, alpha = 0.6) +
   labs(
     title = "Calibration plots for all models",
+    subtitle = "AUROC Optimized",
     caption = "Perfect calibration lies on the diagonal",
     color = "Model"
   )
 
 #+ 
-ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
+ggsave(plot = last_plot(), path = here("out"), filename = "calib-auroc-plot-all.png")
+
+#+ 
+# All probs tibble - AUPRC optimized
+train_auprc_preds <- glm_rs %>%
+  collect_predictions() %>%
+  dplyr::select(Class, .pred_Fraud) %>%
+  transmute(
+    Class = Class,
+    glm = .pred_Fraud
+  )
+
+#+ 
+train_auprc_preds$lda <- collect_predictions(lda_rs)$.pred_Fraud
+train_auprc_preds$qda <- collect_predictions(qda_rs)$.pred_Fraud
+train_auprc_preds$rf <- collect_predictions(rf_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$xgb <- collect_predictions(xgb_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$bag <- collect_predictions(bag_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$glmnet <- collect_predictions(glmnet_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$svmr <- collect_predictions(svmr_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$svmp <- collect_predictions(svmp_final_auprc_rs)$.pred_Fraud
+train_auprc_preds$knn <- collect_predictions(knn_final_auprc_rs)$.pred_Fraud
+
+#+ 
+calib_auprc_df <- caret::calibration(
+  Class ~ glm + lda + qda + rf + xgb + bag + glmnet + svmr + svmp + knn,
+  data = train_auprc_preds,
+  cuts = 10
+)$data
+
+#+ dpi=300
+ggplot(calib_auprc_df, aes(
+  x = midpoint,
+  y = Percent,
+  color = fct_reorder2(calibModelVar, midpoint, Percent)
+)) +
+  geom_abline(color = "grey30", linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.6) +
+  geom_line(size = 1, alpha = 0.6) +
+  labs(
+    title = "Calibration plots for all models",
+    subtitle = "AUPRC Optimized",
+    caption = "Perfect calibration lies on the diagonal",
+    color = "Model"
+  )
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "calib-auprc-plot-all.png")
 
 # Calibrating Models ------------------------------------------------------
 
@@ -1329,24 +2095,6 @@ ggsave(plot = last_plot(), path = here("out"), filename = "calib-plot-all.png")
 #' (https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
 #' be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
 
-# credit_train %>%
-#   factor(Class, levels = c("None", "Fraud")) %>%
-#   train_glm <- glm(Class ~ ., family = "binomial")
-# 
-# train_glm_preds <- as_tibble(predict(train_glm, credit_train, type = "response"))
-# 
-# train_glm_preds$Class <- credit_train$Class
-# 
-# ggplot(caret::calibration(Class ~ value, train_glm_preds))
-# 
-# train_glm_preds <- train_glm_preds %>%
-#   mutate(pred_class = factor(if_else(value < 0.5, "None", "Fraud"), levels = c("Fraud", "None")))
-# 
-# caret::confusionMatrix(
-#   train_glm_preds$pred_class, 
-#   reference = train_glm_preds$Class, 
-#   positive = "Fraud"
-#   )
 
 #' ## Brier Scores
 # Brier Scores ------------------------------------------------------------
@@ -1389,31 +2137,61 @@ brier(lda_rs)
 brier(qda_rs)
 
 #+ 
-# Random Forest
-brier(rf_final_rs)
+# Random Forest - AUROC optimized
+brier(rf_final_auroc_rs)
 
 #+ 
-# XGBoost
-brier(xgb_final_rs)
+# Random Forest - AUPRC optimized
+brier(rf_final_auprc_rs)
 
 #+ 
-# Bagged Trees
-brier(bag_final_rs)
+# XGBoost - AUROC optimized
+brier(xgb_final_auroc_rs)
 
 #+ 
-# GLMNET
-brier(glmnet_final_rs)
+# XGBoost - AUPRC optimized
+brier(xgb_final_auprc_rs)
 
 #+ 
-# SVM-Radial
-brier(svmr_final_rs)
+# Bagged Trees - AUROC optimized
+brier(bag_final_auroc_rs)
 
 #+ 
-#SVM-Polynomial
-brier(svmp_final_rs)
+# Bagged Trees - AUPRC optimized
+brier(bag_final_auprc_rs)
 
-# kNN
-brier(knn_final_rs)
+#+ 
+# GLMNET - AUROC optimized
+brier(glmnet_final_auroc_rs)
+
+#+ 
+# GLMNET - AUPRC optimized
+brier(glmnet_final_auprc_rs)
+
+#+ 
+# SVM-Radial - AUROC optimized
+brier(svmr_final_auroc_rs)
+
+#+ 
+# SVM-Radial - AUPRC optimized
+brier(svmr_final_auprc_rs)
+
+#+ 
+# SVM-Polynomial - AUROC optimized
+brier(svmp_final_auroc_rs)
+
+#+ 
+# SVM-Polynomial - AUPRC optimized
+brier(svmp_final_auprc_rs)
+
+#+
+# kNN - AUROC optimized
+brier(knn_final_auroc_rs)
+
+#+
+# kNN - AUPRC optimized
+brier(knn_final_auprc_rs)
+
 
 #' # Test Data
 # Test Data ---------------------------------------------------------------
