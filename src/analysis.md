@@ -1060,7 +1060,7 @@ xgb_final_auroc_spec %>%
 ```
 
 ```
-## [16:52:30] WARNING: amalgamation/../src/learner.cc:516: 
+## [14:38:28] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -1087,7 +1087,7 @@ xgb_final_auprc_spec %>%
 ```
 
 ```
-## [16:52:34] WARNING: amalgamation/../src/learner.cc:516: 
+## [14:38:37] WARNING: amalgamation/../src/learner.cc:516: 
 ## Parameters: { importance } might not be used.
 ## 
 ##   This may not be accurate due to some parameters are only used in language bindings but
@@ -2692,6 +2692,30 @@ bind_rows(
 ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auprc-plot.png")
 ```
 
+```r
+# Compare predicted positive vs outcome - AUPRC optimized - Select models
+bind_rows(
+  collect_predictions(svmp_final_auprc_rs) %>% mutate(model = "SVM-P"),
+  collect_predictions(rf_final_auprc_rs) %>% mutate(model = "Random Forest")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUPRC Optimized",
+    caption = "Random Forest best AUROC (0.979), AUPRC (0.784)
+    SVM-P best accuracy (0.999), PPV (0.868), specificity (1.00)"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 2)
+```
+
+![](analysis_files/figure-html/unnamed-chunk-230-1.png)<!-- -->
+
+```r
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-select-auprc-plot.png", width = 8, height = 6)
+```
+
 ### Other models
 
 
@@ -2713,7 +2737,7 @@ bind_rows(
   facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-230-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-232-1.png)<!-- -->
 
 ```r
 # Compare predicted positive vs outcome - AUPRC optimized
@@ -2733,7 +2757,7 @@ bind_rows(
   facet_wrap(~ Class + model, scales = "free_y", ncol = 4)
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-231-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-233-1.png)<!-- -->
 
 ## Calibration Plots
 
@@ -2746,6 +2770,10 @@ Calibration plots indicate how much the observed probabilities of an outcome
 (Fraud) predicted in bins match the probabilities observed, i.e. the 0-0.1
 probability bin would expect to see Fraud observed 5% of the time (the midpoint
 of the bin, therefore average probability of the bin)
+Calibrating with monotonic function e.g. Platt scaling or isotonic regression
+does not affect AUROC as ROC is based purely on ranking
+(https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
+be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
 
 
 ```r
@@ -2796,7 +2824,7 @@ ggplot(calib_auroc_df, aes(
   )
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-236-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-238-1.png)<!-- -->
 
 ```r
 ggsave(plot = last_plot(), path = here("out"), filename = "calib-auroc-plot-all.png")
@@ -2850,18 +2878,12 @@ ggplot(calib_auprc_df, aes(
   )
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-241-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-243-1.png)<!-- -->
 
 ```r
 ggsave(plot = last_plot(), path = here("out"), filename = "calib-auprc-plot-all.png")
-
-# Calibrating Models ------------------------------------------------------
 ```
 
-Calibrating with monotonic function e.g. Platt scaling or isotonic regression
-does not affect AUROC as ROC is based purely on ranking
-(https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
-be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
 ## Brier Scores
 
 
@@ -3128,42 +3150,6 @@ so we will use it as the final model for the test data.
 
 
 ```r
-# Evaluate the ROC for all folds in the training data
-rf_final_auprc_rs %>%
-  collect_predictions() %>%
-  group_by(id) %>%
-  roc_curve(Class, .pred_Fraud) %>%
-  ggplot(aes(x = 1 - specificity, y = sensitivity, color = id)) +
-  geom_path(lwd = 1.5, alpha = 0.8) +
-  labs(
-    title = "ROCs for Final Model by Fold in Training Data",
-    subtitle = "Random Forest Optimized using AUPRC",
-    color = "Fold"
-  ) +
-  scale_color_ipsum()
-```
-
-![](analysis_files/figure-html/unnamed-chunk-263-1.png)<!-- -->
-
-```r
-# Evaluate the PRC for all folds in the training data
-rf_final_auprc_rs %>%
-  collect_predictions() %>%
-  group_by(id) %>%
-  pr_curve(Class, .pred_Fraud) %>%
-  ggplot(aes(x = recall, y = precision, color = id)) +
-  geom_path(lwd = 1.5, alpha = 0.8) +
-  labs(
-    title = "PRCs for Final Model by Fold in Training Data",
-    subtitle = "Random Forest Optimized using AUPRC",
-    color = "Fold"
-  ) +
-  scale_color_ipsum()
-```
-
-![](analysis_files/figure-html/unnamed-chunk-264-1.png)<!-- -->
-
-```r
 # Specify final model
 credit_final_spec <- rf_final_auprc_spec
 ```
@@ -3174,6 +3160,9 @@ credit_final_rs <- credit_wf %>%
   add_model(credit_final_spec) %>%
   last_fit(credit_split, metrics = model_mets)
 ```
+
+## Metric comparison
+
 
 ```r
 collect_metrics(credit_final_rs)
@@ -3194,6 +3183,34 @@ collect_metrics(credit_final_rs)
 ```
 
 ```r
+bind_rows(
+  rf_final_auprc_rs %>% collect_metrics() %>% mutate(data = "Training", .estimate = mean),
+  credit_final_rs %>% collect_metrics() %>% mutate(data = "Test")
+  ) %>%
+  select(-c(.estimator:.config)) %>%
+  pivot_wider(names_from = data, values_from = .estimate) %>%
+  pluck("Test", 3)
+```
+
+```
+## [1] 0.9998916
+```
+
+```r
+# Confusion matrix in training set
+collect_predictions(rf_final_auprc_rs) %>%
+  conf_mat(Class, .pred_class)
+```
+
+```
+##           Truth
+## Prediction  Fraud   None
+##      Fraud    364   7167
+##      None      39 220276
+```
+
+```r
+# Confusion matrix in test set
 collect_predictions(credit_final_rs) %>%
   conf_mat(Class, .pred_class)
 ```
@@ -3205,6 +3222,27 @@ collect_predictions(credit_final_rs) %>%
 ##      None      6 55324
 ```
 
+## ROC
+
+
+```r
+# Evaluate the ROC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  roc_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-271-1.png)<!-- -->
+
 ```r
 # Compare ROCs for training vs testing in final RF model
 credit_final_rs %>%
@@ -3215,7 +3253,7 @@ credit_final_rs %>%
   mutate(model = case_when(
     model == "Random Forest - AUPRC" ~ "Training Data", 
     TRUE ~ model
-    )) %>%
+  )) %>%
   ggplot(aes(x = 1 - specificity, y = sensitivity, color = model)) +
   geom_path(lwd = 1.5, alpha = 0.8) +
   labs(
@@ -3226,7 +3264,28 @@ credit_final_rs %>%
   scale_color_ipsum()
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-269-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-272-1.png)<!-- -->
+
+## PRC
+
+
+```r
+# Evaluate the PRC for all folds in the training data
+rf_final_auprc_rs %>%
+  collect_predictions() %>%
+  group_by(id) %>%
+  pr_curve(Class, .pred_Fraud) %>%
+  ggplot(aes(x = recall, y = precision, color = id)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "PRCs for Final Model by Fold in Training Data",
+    subtitle = "Random Forest Optimized using AUPRC",
+    color = "Fold"
+  ) +
+  scale_color_ipsum()
+```
+
+![](analysis_files/figure-html/unnamed-chunk-273-1.png)<!-- -->
 
 ```r
 # Compare PRCs for training vs testing in final RF model
@@ -3251,11 +3310,15 @@ credit_final_rs %>%
   scale_color_ipsum()
 ```
 
-![](analysis_files/figure-html/unnamed-chunk-270-1.png)<!-- -->
+![](analysis_files/figure-html/unnamed-chunk-274-1.png)<!-- -->
+
+```r
+ggsave(plot = last_plot(), path = here("out"), filename = "final-train-test-prc.png")
+```
 
 
 
 ---
-date: '2020-12-09'
+date: '2020-12-10'
 
 ---

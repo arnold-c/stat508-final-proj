@@ -21,6 +21,7 @@ library(hrbrthemes)
 library(janitor)
 library(corrplot)
 library(skimr)
+library(cowplot)
 
 RNGkind(sample.kind = "Rounding")
 set.seed(1)
@@ -389,7 +390,9 @@ for (i in names(credit[, -31])) {
 ggplot(data = credit, aes(x = Time, fill = Class)) +
   geom_histogram() +
   facet_wrap(~Class, scales = "free") +
-  labs(title = "Relationship between time and fraud") +
+  labs(
+    title = "Relationship between time and fraud",
+    x = "Time since first transaction") +
   scale_fill_ipsum()
 ```
 
@@ -400,7 +403,8 @@ ggplot(data = credit, aes(x = Time, fill = Class)) +
 ggplot(data = credit, aes(x = log(Amount), fill = Class)) +
   geom_histogram() +
   facet_wrap(~Class, scales = "free") +
-  labs(title = "Relationship between (log) amount spent and fraud") +
+  labs(
+    title = "Relationship between (log) amount spent and fraud") +
   scale_fill_ipsum()
 ```
 
@@ -525,27 +529,39 @@ levels(prop_vars$PC)
 ```
 
 ```r
-prop_vars %>%
+prop_var_plt <- prop_vars %>%
   ggplot(aes(x = PC, y = prop_var)) +
   geom_col(fill = "cornflowerblue") + 
   labs(title = "Proportion of Variance Explained by Principal Components",
        x = "Principal component number",
        y = "Proportion of variance explained")
+
+prop_var_plt
 ```
 
 ![](eda_files/figure-html/unnamed-chunk-17-1.png)<!-- -->
 
 
 ```r
-prop_vars %>%
+cum_var_plot <- prop_vars %>%
   ggplot(aes(x = PC, y = cum_var)) +
   geom_col(fill = "cornflowerblue") + 
   labs(title = "Cumulative Proportion of Variance Explained by Principal Components",
        x = "Principal component number",
-       y = "Proportion of variance explained")
+       y = "Proportion of variance explained") + 
+  geom_hline(yintercept = prop_vars$cum_var[10], lty = 2) +
+  annotate(geom = "text", x = 3, y = 0.685, label = paste0("Cum. Var = ", round(prop_vars$cum_var[10], 2)), col = "grey20")
+
+cum_var_plot
 ```
 
 ![](eda_files/figure-html/unnamed-chunk-18-1.png)<!-- -->
 
 
+
+```r
+plot_grid(prop_var_plt, cum_var_plot, ncol = 1, labels = c("A", "B"))
+```
+
+![](eda_files/figure-html/unnamed-chunk-19-1.png)<!-- -->
 
