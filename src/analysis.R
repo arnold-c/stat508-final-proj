@@ -1948,6 +1948,26 @@ bind_rows(
 #+ 
 ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-auprc-plot.png")
 
+#+ dpi=300
+# Compare predicted positive vs outcome - AUPRC optimized - Select models
+bind_rows(
+  collect_predictions(svmp_final_auprc_rs) %>% mutate(model = "SVM-P"),
+  collect_predictions(rf_final_auprc_rs) %>% mutate(model = "Random Forest")
+) %>%
+  ggplot(aes(x = .pred_Fraud, fill = Class)) +
+  geom_histogram(binwidth = 0.01) +
+  scale_fill_ipsum() +
+  labs(
+    title = "Predicted probability of fraud distributions by known class",
+    subtitle = "AUPRC Optimized",
+    caption = "Random Forest best AUROC (0.979), AUPRC (0.784)
+    SVM-P best accuracy (0.999), PPV (0.868), specificity (1.00)"
+  ) +
+  facet_wrap(~ Class + model, scales = "free_y", ncol = 2)
+
+#+ 
+ggsave(plot = last_plot(), path = here("out"), filename = "pred-dist-select-auprc-plot.png", width = 8, height = 6)
+
 #' ### Other models
 
 #+ dpi=300
@@ -1993,6 +2013,11 @@ bind_rows(
 #' (Fraud) predicted in bins match the probabilities observed, i.e. the 0-0.1
 #' probability bin would expect to see Fraud observed 5% of the time (the midpoint
 #' of the bin, therefore average probability of the bin)
+
+#' Calibrating with monotonic function e.g. Platt scaling or isotonic regression
+#' does not affect AUROC as ROC is based purely on ranking
+#' (https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
+#' be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
 
 #+ 
 # All probs tibble - AUROC optimized
@@ -2087,14 +2112,6 @@ ggplot(calib_auprc_df, aes(
 
 #+ 
 ggsave(plot = last_plot(), path = here("out"), filename = "calib-auprc-plot-all.png")
-
-# Calibrating Models ------------------------------------------------------
-
-#' Calibrating with monotonic function e.g. Platt scaling or isotonic regression
-#' does not affect AUROC as ROC is based purely on ranking
-#' (https://www.fharrell.com/post/mlconfusion/). Unlikely that accuracy will
-#' be affected by either (https://www.youtube.com/watch?v=w3OPq0V8fr8)
-
 
 #' ## Brier Scores
 # Brier Scores ------------------------------------------------------------
@@ -2200,6 +2217,43 @@ brier(knn_final_auprc_rs)
 #' so we will use it as the final model for the test data.
 
 #+
+# Specify final model
+credit_final_spec <- rf_final_auprc_spec
+
+#+
+# Fit final model to all training data and evaluate on test set
+credit_final_rs <- credit_wf %>%
+  add_model(credit_final_spec) %>%
+  last_fit(credit_split, metrics = model_mets)
+
+#' ## Metric comparison
+
+#+
+collect_metrics(credit_final_rs)
+
+#+
+bind_rows(
+  rf_final_auprc_rs %>% collect_metrics() %>% mutate(data = "Training", .estimate = mean),
+  credit_final_rs %>% collect_metrics() %>% mutate(data = "Test")
+  ) %>%
+  select(-c(.estimator:.config)) %>%
+  pivot_wider(names_from = data, values_from = .estimate) %>%
+  pluck("Test", 3)
+
+#+
+# Confusion matrix in training set
+collect_predictions(rf_final_auprc_rs) %>%
+  conf_mat(Class, .pred_class)
+
+#+
+# Confusion matrix in test set
+collect_predictions(credit_final_rs) %>%
+  conf_mat(Class, .pred_class)
+
+
+#' ## ROC
+
+#+
 # Evaluate the ROC for all folds in the training data
 rf_final_auprc_rs %>%
   collect_predictions() %>%
@@ -2215,6 +2269,28 @@ rf_final_auprc_rs %>%
   scale_color_ipsum()
 
 #+
+# Compare ROCs for training vs testing in final RF model
+credit_final_rs %>%
+  collect_predictions() %>%
+  roc_curve(truth = Class, .pred_Fraud) %>%
+  mutate(model = "Test Data") %>%
+  bind_rows(rf_final_auprc_roc) %>%
+  mutate(model = case_when(
+    model == "Random Forest - AUPRC" ~ "Training Data", 
+    TRUE ~ model
+  )) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity, color = model)) +
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  labs(
+    title = "ROCs for Final Model in Training and Test Data",
+    subtitle = "Random Forest Optimized for AUPRC",
+    color = "Data Type"
+  ) +
+  scale_color_ipsum()
+
+#' ## PRC
+
+#+
 # Evaluate the PRC for all folds in the training data
 rf_final_auprc_rs %>%
   collect_predictions() %>%
@@ -2226,43 +2302,6 @@ rf_final_auprc_rs %>%
     title = "PRCs for Final Model by Fold in Training Data",
     subtitle = "Random Forest Optimized using AUPRC",
     color = "Fold"
-  ) +
-  scale_color_ipsum()
-
-#+
-# Specify final model
-credit_final_spec <- rf_final_auprc_spec
-
-#+
-# Fit final model to all training data and evaluate on test set
-credit_final_rs <- credit_wf %>%
-  add_model(credit_final_spec) %>%
-  last_fit(credit_split, metrics = model_mets)
-
-#+
-collect_metrics(credit_final_rs)
-
-#+
-collect_predictions(credit_final_rs) %>%
-  conf_mat(Class, .pred_class)
-
-#+
-# Compare ROCs for training vs testing in final RF model
-credit_final_rs %>%
-  collect_predictions() %>%
-  roc_curve(truth = Class, .pred_Fraud) %>%
-  mutate(model = "Test Data") %>%
-  bind_rows(rf_final_auprc_roc) %>%
-  mutate(model = case_when(
-    model == "Random Forest - AUPRC" ~ "Training Data", 
-    TRUE ~ model
-    )) %>%
-  ggplot(aes(x = 1 - specificity, y = sensitivity, color = model)) +
-  geom_path(lwd = 1.5, alpha = 0.8) +
-  labs(
-    title = "ROCs for Final Model in Training and Test Data",
-    subtitle = "Random Forest Optimized for AUPRC",
-    color = "Data Type"
   ) +
   scale_color_ipsum()
 
@@ -2287,3 +2326,5 @@ credit_final_rs %>%
     color = "Data Type"
   ) +
   scale_color_ipsum()
+
+ggsave(plot = last_plot(), path = here("out"), filename = "final-train-test-prc.png")
